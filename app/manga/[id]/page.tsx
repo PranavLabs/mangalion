@@ -11,16 +11,15 @@ export default function MangaDetails() {
     if(id) fetch(`/api/manga?type=info&id=${id}`).then(r => r.json()).then(setData);
   }, [id]);
 
-  if (!data) return <div className="text-white p-10 text-center">Loading info...</div>;
+  if (!data) return <div className="text-white p-10 text-center">Loading...</div>;
 
   return (
     <div className="p-6 max-w-5xl mx-auto text-white">
       <Link href="/" className="inline-block px-4 py-2 bg-gray-800 rounded mb-6 hover:bg-gray-700">← Back Home</Link>
-      
       <div className="flex flex-col md:flex-row gap-8 mb-10">
         <div className="w-full md:w-1/3">
             <img 
-                src={`/api/proxy?url=${encodeURIComponent(data.image)}&referer=https://www.mangahere.cc/`} 
+                src={`/api/proxy?url=${encodeURIComponent(data.image)}&referer=https://mangapill.com/`} 
                 className="w-full rounded-lg shadow-2xl" 
                 alt={data.title}
             />
@@ -28,10 +27,6 @@ export default function MangaDetails() {
         <div className="w-full md:w-2/3">
           <h1 className="text-4xl font-bold mb-4">{data.title}</h1>
           <p className="text-gray-300 leading-relaxed mb-4">{data.description}</p>
-          <div className="flex gap-4 text-sm text-gray-400">
-            <span>Status: <b className="text-white">{data.status}</b></span>
-            <span>Released: <b className="text-white">{data.releaseDate}</b></span>
-          </div>
         </div>
       </div>
 
