@@ -4,8 +4,8 @@ import axios from 'axios';
 export async function GET(request: NextRequest) {
   const url = request.nextUrl.searchParams.get('url');
   
-  // CRITICAL: MangaHere blocks requests unless they come from their own site
-  const referer = request.nextUrl.searchParams.get('referer') || 'https://www.mangahere.cc/';
+  // MangaPill requires this specific referer
+  const referer = request.nextUrl.searchParams.get('referer') || 'https://mangapill.com/';
 
   if (!url) return new NextResponse('Missing URL', { status: 400 });
 
@@ -16,13 +16,11 @@ export async function GET(request: NextRequest) {
       responseType: 'arraybuffer',
       headers: {
         'Referer': referer,
-        // Using a real browser User-Agent prevents blocking
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       },
     });
 
     const contentType = response.headers['content-type'] || 'image/jpeg';
-
     return new NextResponse(response.data, {
       status: 200,
       headers: {
@@ -32,6 +30,6 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    return new NextResponse('Error loading image', { status: 500 });
+    return new NextResponse('Error', { status: 500 });
   }
 }
