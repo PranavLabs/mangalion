@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { MANGA } from '@consumet/extensions';
 
-// MangaHere is a massive aggregator that is currently stable
-const mangaProvider = new MANGA.MangaHere();
+// MangaPill is currently the most stable alternative
+const mangaProvider = new MANGA.MangaPill();
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -11,31 +11,24 @@ export async function GET(request: Request) {
   const id = searchParams.get('id');
 
   try {
-    // 1. Fetch Manga Info
     if (type === 'info' && id) {
       const info = await mangaProvider.fetchMangaInfo(id);
       return NextResponse.json(info);
     }
-    
-    // 2. Fetch Chapter Pages
     if (type === 'chapter' && id) {
       const pages = await mangaProvider.fetchChapterPages(id);
       return NextResponse.json(pages);
     }
-    
-    // 3. Search
     if (query) {
       const results = await mangaProvider.search(query);
       return NextResponse.json(results);
     }
-    
-    // 4. Default: Search for something popular to fill the home page
-    // MangaHere doesn't always have a "trending" endpoint, so we search "Action"
-    const popular = await mangaProvider.search('Action'); 
+    // MangaPill doesn't have a generic trending endpoint in some versions, 
+    // so we search for "One Piece" or "Naruto" to fill the home page with valid data.
+    const popular = await mangaProvider.search('One Piece'); 
     return NextResponse.json(popular);
     
   } catch (err) {
-    console.error('API Error:', err);
     return NextResponse.json({ error: 'Fetch failed' }, { status: 500 });
   }
 }
