@@ -16,6 +16,9 @@
     "react-dom": "^18",
     "lucide-react": "^0.294.0"
   },
+  "overrides": {
+    "undici": "5.28.4"
+  },
   "devDependencies": {
     "@types/node": "^20",
     "@types/react": "^18",
