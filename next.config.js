@@ -1,7 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // This tells Next.js to compile these packages so they don't break the build
-  transpilePackages: ['@consumet/extensions', 'undici', 'cheerio'],
+  // This tells Next.js to exclude these libraries from the build process
+  // and treat them as server-side only dependencies.
+  experimental: {
+    serverComponentsExternalPackages: ['@consumet/extensions', 'cheerio', 'undici'],
+  },
   
   images: {
     remotePatterns: [
