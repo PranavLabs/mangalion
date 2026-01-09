@@ -5,7 +5,8 @@ import { MANGA } from '@consumet/extensions';
 const providers = {
   mangapill: new MANGA.MangaPill(),
   mangahere: new MANGA.MangaHere(),
-  asurascans: new MANGA.WeebCentral(),
+  // NEW: WeebCentral replacing AsuraScans
+  weebcentral: new MANGA.WeebCentral(),
 };
 
 export async function GET(request: Request) {
@@ -34,13 +35,11 @@ export async function GET(request: Request) {
       return NextResponse.json(results);
     }
     
-    // Trending/Popular Logic
+    // Trending Logic
     try {
-        // We cast to 'any' to avoid TypeScript errors if a provider lacks this specific method
         const popular = await (provider as any).fetchTrending();
         return NextResponse.json(popular);
     } catch (e) {
-        // Fallback: search for a generic term if trending fails
         const fallback = await provider.search('Leveling'); 
         return NextResponse.json(fallback);
     }
