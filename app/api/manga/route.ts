@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { MANGA } from '@consumet/extensions';
-import axios from 'axios';
+import chromium from '@sparticuz/chromium';
+import playwright from 'playwright-core';
 
 // Initialize 2 Providers
 const providers = {
@@ -8,8 +9,9 @@ const providers = {
   mangahere: new MANGA.MangaHere(),
 };
 
-// --- IMPROVED MANGAHERE SCRAPER (No Puppeteer) ---
-async function fetchMangaHereImages(chapterId: string) {
+// --- BROWSER-BASED WEBTOON SCRAPER ---
+async function fetchMangaHereWebtoonsImagesWithBrowser(chapterId: string) {
+  let browser;
   try {
     const baseUrl = 'https://www.mangahere.cc';
 
@@ -21,83 +23,54 @@ async function fetchMangaHereImages(chapterId: string) {
       targetUrl = `${baseUrl}/manga/${cleanId}/1.html`;
     }
 
-    console.log('[MangaHere] Fetching:', targetUrl);
+    console.log('[MangaHere Browser] Fetching:', targetUrl);
 
-    const { data } = await axios.get(targetUrl, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Referer': 'https://www.mangahere.cc/',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Cache-Control': 'no-cache',
-      },
-      timeout: 15000,
+    // Launch Chromium with sparticuz for Vercel compatibility
+    browser = await playwright.chromium.launch({
+      args: chromium.args,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
     });
 
-    console.log('[MangaHere] Got HTML, length:', data.length);
+    const context = await browser.createBrowserContext();
+    const page = await context.newPage();
 
-    const images: string[] = [];
+    // Go to first page
+    await page.goto(targetUrl, { waitUntil: 'networkidle', timeout: 30000 });
 
-    // Method 1: Extract from img src attributes (these are in the HTML)
-    // Look for: src="https://fmcdn.mangahere.com/..." or src="https://zjcdn.mangahere.org/..."
-    const imgSrcRegex = /src=["']([^"']*(?:fmcdn|zjcdn)[^"']*(?:jpg|png|webp|jpeg)[^"']*)["']/gi;
-    let match;
-    
-    while ((match = imgSrcRegex.exec(data)) !== null) {
-      let url = match[1];
-      if (!url.includes('loading') && !url.includes('nopicture')) {
-        if (url.startsWith('//')) {
-          url = 'https:' + url;
+    // Wait for images to load
+    await page.waitForTimeout(2000); // Wait for JS to execute
+
+    // Extract all image src attributes
+    const images = await page.evaluate(() => {
+      const imgs = document.querySelectorAll('img');
+      const urls: string[] = [];
+
+      imgs.forEach((img) => {
+        const src = img.getAttribute('src');
+        if (src && (src.includes('.jpg') || src.includes('.png') || src.includes('.webp'))) {
+          if (!src.includes('loading') && !src.includes('nopicture') && !src.includes('logo')) {
+            const fullUrl = src.startsWith('http') ? src : src.startsWith('//') ? 'https:' + src : 'https://' + src;
+            if (!urls.includes(fullUrl)) {
+              urls.push(fullUrl);
+            }
+          }
         }
-        if (!images.includes(url)) {
-          images.push(url);
-        }
-      }
-    }
+      });
 
-    if (images.length > 0) {
-      console.log('[MangaHere] Found', images.length, 'images from src');
-      return images.map((img) => ({ img }));
-    }
+      return urls;
+    });
 
-    // Method 2: Extract from data-src (lazy loading)
-    const dataSrcRegex = /data-src=["']([^"']*(?:fmcdn|zjcdn)[^"']*(?:jpg|png|webp|jpeg)[^"']*)["']/gi;
-    while ((match = dataSrcRegex.exec(data)) !== null) {
-      let url = match[1];
-      if (!url.includes('loading')) {
-        if (url.startsWith('//')) {
-          url = 'https:' + url;
-        }
-        if (!images.includes(url)) {
-          images.push(url);
-        }
-      }
-    }
+    await context.close();
+    await browser.close();
 
-    if (images.length > 0) {
-      console.log('[MangaHere] Found', images.length, 'images from data-src');
-      return images.map((img) => ({ img }));
-    }
-
-    // Method 3: Extract from data-original (another lazy loading variant)
-    const dataOriginalRegex = /data-original=["']([^"']*(?:fmcdn|zjcdn)[^"']*(?:jpg|png|webp|jpeg)[^"']*)["']/gi;
-    while ((match = dataOriginalRegex.exec(data)) !== null) {
-      let url = match[1];
-      if (!images.includes(url)) {
-        images.push(url);
-      }
-    }
-
-    if (images.length > 0) {
-      console.log('[MangaHere] Found', images.length, 'images from data-original');
-      return images.map((img) => ({ img }));
-    }
-
-    console.log('[MangaHere] No images found');
-    return [];
+    console.log('[MangaHere Browser] Found', images.length, 'images');
+    return images.map((img) => ({ img }));
   } catch (e: any) {
-    console.error('[MangaHere] Error:', e.response?.status || e.code, e.message);
+    console.error('[MangaHere Browser] Error:', e.message);
+    if (browser) {
+      await browser.close().catch(() => {});
+    }
     return [];
   }
 }
@@ -121,19 +94,28 @@ export async function GET(request: Request) {
       try {
         const pages = await provider.fetchChapterPages(id);
 
-        if ((!pages || pages.length === 0) && providerName === 'mangahere') {
-          console.log('[API] Consumet empty, trying manual scraper');
-          const manualPages = await fetchMangaHereImages(id);
-          return NextResponse.json(manualPages);
+        // If Consumet works, use it
+        if (pages && pages.length > 0) {
+          return NextResponse.json(pages);
         }
 
-        return NextResponse.json(pages);
-      } catch (e) {
+        // If Consumet fails for Mangahere, use browser scraper
         if (providerName === 'mangahere') {
-          console.log('[API] Consumet error, trying manual scraper');
-          const manualPages = await fetchMangaHereImages(id);
-          return NextResponse.json(manualPages);
+          console.log('[API] Consumet failed, using browser for webtoons');
+          const browserPages = await fetchMangaHereWebtoonsImagesWithBrowser(id);
+          return NextResponse.json(browserPages);
         }
+
+        return NextResponse.json([]);
+      } catch (e: any) {
+        console.error('[API] Error:', e.message);
+
+        // Fallback to browser scraper for Mangahere
+        if (providerName === 'mangahere') {
+          const browserPages = await fetchMangaHereWebtoonsImagesWithBrowser(id);
+          return NextResponse.json(browserPages);
+        }
+
         return NextResponse.json([]);
       }
     }
