@@ -50,16 +50,18 @@ export default function Home() {
         <div className="flex flex-col md:flex-row gap-4 mb-8 max-w-4xl mx-auto items-center">
           <div className="w-full md:w-auto flex flex-col">
             <label className="text-xs text-gray-500 mb-1 ml-1 uppercase font-bold tracking-wider">Source</label>
-            <select 
-              value={provider}
-              onChange={(e) => setProvider(e.target.value)}
-              className="p-4 bg-neutral-900 rounded-lg border border-neutral-800 text-blue-400 font-bold focus:outline-none focus:border-blue-600 cursor-pointer appearance-none min-w-[200px]"
-            >
-              <option value="mangapill">MangaPill (Fast)</option>
-              <option value="mangahere">MangaHere (Classic)</option>
-              {/* UPDATED OPTION */}
-              <option value="weebcentral">WeebCentral (Quality)</option>
-            </select>
+
+
+<select 
+  value={provider}
+  onChange={(e) => setProvider(e.target.value)}
+  className="p-4 bg-neutral-900 rounded-lg border border-neutral-800 text-blue-400 font-bold focus:outline-none focus:border-blue-600 cursor-pointer appearance-none min-w-[200px]"
+>
+  <option value="mangapill">MangaPill (Fast)</option>
+  <option value="mangahere">MangaHere (Classic)</option>
+  {/* REPLACED WEEBCENTRAL */}
+  <option value="mangareader">MangaReader (Reliable)</option>
+</select>
           </div>
 
           <div className="flex-1 w-full flex gap-2">
