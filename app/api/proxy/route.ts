@@ -5,19 +5,18 @@ export async function GET(request: NextRequest) {
   const url = request.nextUrl.searchParams.get('url');
   if (!url) return new NextResponse('Missing URL', { status: 400 });
 
-  // 1. DECODE THE URL
-  // Sometimes the URL comes in encoded, we need the raw link
   const targetUrl = decodeURIComponent(url);
 
-  // 2. SMART REFERER SELECTION
-  // We check keywords in the URL to decide which "ID Badge" to show the server
-  let referer = 'https://google.com'; // Default
+  // Default Referer
+  let referer = 'https://google.com';
 
+  // SMART REFERER DETECTION
   if (targetUrl.includes('mangapill')) {
     referer = 'https://mangapill.com/';
   } 
+  // FIX: Explicitly use comix.to as requested
   else if (targetUrl.includes('comick') || targetUrl.includes('comix')) {
-    referer = 'https://comick.io/'; // The new ComicK domain
+    referer = 'https://comix.to/'; 
   } 
   else if (targetUrl.includes('mangadex')) {
     referer = 'https://mangadex.org/';
@@ -33,9 +32,9 @@ export async function GET(request: NextRequest) {
       responseType: 'arraybuffer',
       headers: {
         'Referer': referer,
-        // Using a real browser User-Agent is critical for ComicK/MangaPill
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Origin': new URL(referer).origin // Some sites check Origin too
+        // Some image servers check Origin as well
+        'Origin': new URL(referer).origin 
       },
     });
 
@@ -50,7 +49,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error(`Proxy Fail for ${targetUrl}`);
+    // console.error(`Proxy Fail: ${targetUrl}`); // Uncomment for debugging
     return new NextResponse('Failed to load image', { status: 500 });
   }
 }
