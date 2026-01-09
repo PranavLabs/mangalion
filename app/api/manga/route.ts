@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { MANGA } from '@consumet/extensions';
 import puppeteerCore from 'puppeteer-core';
-import axios from 'axios';
 
 // Initialize 2 Providers
 const providers = {
@@ -29,14 +28,14 @@ async function fetchMangaHereImagesWithBrowser(chapterId: string) {
     const executablePath = process.env.CHROMIUM_PATH || undefined;
     
     browser = await puppeteerCore.launch({
-      headless: 'new',
+      headless: true,
       executablePath,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
       ],
-    });
+    } as any);
 
     const page = await browser.newPage();
     
@@ -152,4 +151,3 @@ export async function GET(request: Request) {
     );
   }
 }
-
