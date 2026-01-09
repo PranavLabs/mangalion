@@ -22,17 +22,16 @@ export async function GET(request: NextRequest) {
   else if (source === 'mangahere') {
     headers['Referer'] = 'https://www.mangahere.cc/';
   }
-  else if (source === 'weebcentral') {
-    // FIX: WeebCentral requires this specific referer to unlock images
-    headers['Referer'] = 'https://weebcentral.com/';
-    headers['Origin'] = 'https://weebcentral.com';
+  else if (source === 'mangareader') {
+    // FIX: MangaReader requires this referer
+    headers['Referer'] = 'https://mangareader.to/';
   }
 
-  // Fallback: If source is missing, guess based on URL
+  // Fallback: Guess based on URL if source is missing
   if (!headers['Referer']) {
       if (targetUrl.includes('mangapill')) headers['Referer'] = 'https://mangapill.com/';
       else if (targetUrl.includes('mangahere')) headers['Referer'] = 'https://www.mangahere.cc/';
-      else if (targetUrl.includes('weebcentral')) headers['Referer'] = 'https://weebcentral.com/';
+      else if (targetUrl.includes('mangareader')) headers['Referer'] = 'https://mangareader.to/';
   }
 
   try {
