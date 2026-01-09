@@ -3,26 +3,30 @@ import axios from 'axios';
 
 export async function GET(request: NextRequest) {
   const url = request.nextUrl.searchParams.get('url');
+  // New Param: We trust the frontend to tell us the source
+  const source = request.nextUrl.searchParams.get('source'); 
+
   if (!url) return new NextResponse('Missing URL', { status: 400 });
 
   const targetUrl = decodeURIComponent(url);
 
-  // Default Referer
-  let referer = 'https://google.com';
+  // Default Headers
+  let headers: Record<string, string> = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  };
 
-  // SMART REFERER DETECTION
-  if (targetUrl.includes('mangapill')) {
-    referer = 'https://mangapill.com/';
+  // FORCE REFERER BASED ON SOURCE PARAM
+  if (source === 'mangapill') {
+    headers['Referer'] = 'https://mangapill.com/';
   } 
-  // FIX: Explicitly use comix.to as requested
-  else if (targetUrl.includes('comick') || targetUrl.includes('comix')) {
-    referer = 'https://comix.to/'; 
+  else if (source === 'comick') {
+    headers['Referer'] = 'https://comix.to/';
   } 
-  else if (targetUrl.includes('mangadex')) {
-    referer = 'https://mangadex.org/';
+  else if (source === 'mangadex') {
+    headers['Referer'] = 'https://mangadex.org/';
   } 
-  else if (targetUrl.includes('manganato') || targetUrl.includes('chapmanganato')) {
-    referer = 'https://chapmanganato.com/';
+  else if (source === 'manganato' || source === 'mangakakalot') {
+    headers['Referer'] = 'https://chapmanganato.com/';
   }
 
   try {
@@ -30,12 +34,7 @@ export async function GET(request: NextRequest) {
       url: targetUrl,
       method: 'GET',
       responseType: 'arraybuffer',
-      headers: {
-        'Referer': referer,
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        // Some image servers check Origin as well
-        'Origin': new URL(referer).origin 
-      },
+      headers: headers,
     });
 
     const contentType = response.headers['content-type'] || 'image/jpeg';
@@ -49,7 +48,6 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    // console.error(`Proxy Fail: ${targetUrl}`); // Uncomment for debugging
     return new NextResponse('Failed to load image', { status: 500 });
   }
 }
