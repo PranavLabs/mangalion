@@ -108,12 +108,15 @@ export default function Home() {
                                 We do NOT send &referer= anymore. 
                                 The route.ts file calculates it automatically.
                             */}
-                            <img 
-                                src={m.image ? `/api/proxy?url=${encodeURIComponent(m.image)}` : '/placeholder.png'} 
-                                className="object-cover w-full h-full group-hover:scale-110 transition duration-500 ease-out opacity-90 group-hover:opacity-100"
-                                alt={m.title}
-                                loading="lazy"
-                            />
+                            // Find the <img /> tag inside the map loop and replace it with this:
+
+<img 
+  // FIX: We append &source={provider} to ensure the proxy knows which header to use
+  src={m.image ? `/api/proxy?url=${encodeURIComponent(m.image)}&source=${provider}` : '/placeholder.png'} 
+  className="object-cover w-full h-full group-hover:scale-110 transition duration-500 ease-out opacity-90 group-hover:opacity-100"
+  alt={m.title}
+  loading="lazy"
+/>
                             
                             {/* Hover Overlay */}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
