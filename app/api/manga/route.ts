@@ -13,17 +13,18 @@ async function fetchMangaHereImages(chapterId: string) {
   try {
     const baseUrl = 'https://www.mangahere.cc';
 
-    // Normalize chapter URL
+    // Build the chapter URL - the ID from Consumet is usually just the relative path
     let targetUrl = chapterId.startsWith('http')
       ? chapterId
       : `${baseUrl}/${chapterId}`;
 
-    // CRITICAL FIX: Normalize to /1.html for webtoons
+    // IMPORTANT: Don't add /1.html - Mangahere webtoons are single-page
+    // Just ensure .html extension exists
     if (!targetUrl.endsWith('.html')) {
-      targetUrl = targetUrl.replace(/\/+$/, '') + '/1.html';
+      targetUrl = targetUrl.replace(/\/+$/, '') + '.html';
     }
 
-    console.log('[MangaHere Scraper] Fetching:', targetUrl);
+    console.log('[MangaHere] Attempting:', targetUrl);
 
     const { data } = await axios.get(targetUrl, {
       headers: {
@@ -34,79 +35,62 @@ async function fetchMangaHereImages(chapterId: string) {
       timeout: 10000,
     });
 
-    console.log('[MangaHere Scraper] HTML length:', data.length);
+    console.log('[MangaHere] Got response, HTML length:', data.length);
 
-    // Multiple regex patterns to try
+    // Try multiple patterns to extract images
     const patterns = [
       // Pattern 1: var image = [...]
       /var\s+image\s*=\s*(\[[^\]]+\])/,
-      // Pattern 2: "image":[ ... ]
-      /"image"\s*:\s*(\[[^\]]+\])/,
-      // Pattern 3: images = [...]
-      /images\s*=\s*(\[[^\]]+\])/,
-      // Pattern 4: var dm_imageURL = [...]
+      // Pattern 2: images variable
+      /var\s+images\s*=\s*(\[[^\]]+\])/,
+      // Pattern 3: dm_imageURL
       /var\s+dm_imageURL\s*=\s*(\[[^\]]+\])/,
-      // Pattern 5: Look for img tags with src
-      /<img[^>]+src=["']([^"']+)["'][^>]*class=["']reader[^"']*["'][^>]*>/g,
+      // Pattern 4: image array in object
+      /"image"\s*:\s*(\[[^\]]+\])/,
     ];
 
     for (let i = 0; i < patterns.length; i++) {
-      const pattern = patterns[i];
-      
-      if (pattern.global) {
-        // For regex with global flag (image tags)
-        const matches = [...data.matchAll(pattern)];
-        if (matches.length > 0) {
-          console.log(`[MangaHere Scraper] Found ${matches.length} images with pattern ${i + 1}`);
-          return matches.map((match) => ({
-            img: match[1].startsWith('//') ? `https:${match[1]}` : match[1],
-          }));
-        }
-      } else {
-        // For regular patterns
-        const match = data.match(pattern);
-        if (match && match[1]) {
-          console.log(`[MangaHere Scraper] Matched pattern ${i + 1}`);
-          try {
-            const rawImages = eval(match[1]);
-            if (Array.isArray(rawImages) && rawImages.length > 0) {
-              console.log(`[MangaHere Scraper] Extracted ${rawImages.length} images`);
-              return rawImages.map((img: string) => ({
-                img: img.startsWith('//') ? `https:${img}` : img,
-              }));
-            }
-          } catch (evalError) {
-            console.log(`[MangaHere Scraper] Pattern ${i + 1} eval failed, trying next...`);
-            continue;
+      const match = data.match(patterns[i]);
+      if (match && match[1]) {
+        console.log(`[MangaHere] Matched pattern ${i + 1}`);
+        try {
+          const rawImages = eval(match[1]);
+          if (Array.isArray(rawImages) && rawImages.length > 0) {
+            console.log(`[MangaHere] Extracted ${rawImages.length} images`);
+            return rawImages.map((img: string) => ({
+              img: img.startsWith('//') ? `https:${img}` : img,
+            }));
           }
+        } catch (evalError) {
+          console.log(`[MangaHere] Pattern ${i + 1} eval failed`);
+          continue;
         }
       }
     }
 
-    // Last resort: Extract all image URLs from src attributes
-    console.log('[MangaHere Scraper] Trying to extract img src attributes');
-    const srcMatches = [...data.matchAll(/<img[^>]+src=["']([^"']+)["'][^>]*>/g)];
-    if (srcMatches.length > 0) {
-      const uniqueImages = new Set<string>();
-      srcMatches.forEach((match) => {
-        let url = match[1];
-        if (url.includes('jpg') || url.includes('png') || url.includes('webp')) {
-          if (url.startsWith('//')) {
-            url = `https:${url}`;
-          }
-          uniqueImages.add(url);
-        }
-      });
-      if (uniqueImages.size > 0) {
-        console.log(`[MangaHere Scraper] Extracted ${uniqueImages.size} images from src`);
-        return Array.from(uniqueImages).map((img) => ({ img }));
-      }
+    // Last resort: Extract img tags
+    console.log('[MangaHere] Trying img tag extraction');
+    const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/g;
+    const matches = [...data.matchAll(imgRegex)];
+    
+    const imageUrls = matches
+      .map((m) => m[1])
+      .filter((url) => url && (url.includes('jpg') || url.includes('png') || url.includes('webp')))
+      .map((url) => url.startsWith('//') ? `https:${url}` : url)
+      .filter((v, i, a) => a.indexOf(v) === i); // dedupe
+
+    if (imageUrls.length > 0) {
+      console.log(`[MangaHere] Extracted ${imageUrls.length} images from img tags`);
+      return imageUrls.map((img) => ({ img }));
     }
 
-    console.log('[MangaHere Scraper] No images found with any pattern');
+    console.log('[MangaHere] No images found');
     return [];
-  } catch (e) {
-    console.error('[MangaHere Scraper] Error:', e);
+  } catch (e: any) {
+    console.error('[MangaHere] Error:', e.response?.status, e.message);
+    if (e.response?.status === 404) {
+      console.error('[MangaHere] Chapter returns 404 - may be removed or URL format is wrong');
+    }
     return [];
   }
 }
@@ -131,10 +115,10 @@ export async function GET(request: Request) {
         // Try Standard Library First
         const pages = await provider.fetchChapterPages(id);
 
-        // If library returns empty array (common for webtoons), try manual fix
+        // If library returns empty array, try manual fix for Mangahere
         if (!pages || pages.length === 0) {
           if (providerName === 'mangahere') {
-            console.log('[API] Consumet returned empty, trying manual scraper for:', id);
+            console.log('[API] Consumet empty, trying manual for:', id);
             const manualPages = await fetchMangaHereImages(id);
             return NextResponse.json(manualPages);
           }
@@ -142,10 +126,9 @@ export async function GET(request: Request) {
 
         return NextResponse.json(pages);
       } catch (e) {
-        console.log('[API] Consumet crashed, error:', e);
-        // If library CRASHES, try manual fix immediately
+        // If library crashes, try manual fix
         if (providerName === 'mangahere') {
-          console.log('[API] Trying manual scraper for:', id);
+          console.log('[API] Consumet crashed, trying manual for:', id);
           const manualPages = await fetchMangaHereImages(id);
           return NextResponse.json(manualPages);
         }
