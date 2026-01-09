@@ -10,8 +10,10 @@
   },
   "dependencies": {
     "@consumet/extensions": "^1.4.9",
+    "@sparticuz/chromium": "^123.0.0",
     "axios": "^1.6.2",
     "next": "14.2.3",
+    "playwright-core": "^1.40.0",
     "react": "^18",
     "react-dom": "^18",
     "lucide-react": "^0.294.0"
