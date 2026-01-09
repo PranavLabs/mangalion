@@ -37,14 +37,14 @@ export async function GET(request: Request) {
       return NextResponse.json(results);
     }
     
-    // 4. Trending/Popular (Fallback logic varies by provider)
+    // 4. Trending/Popular
     try {
-        // ComicK and MangaDex have good trending endpoints
-        const popular = await provider.fetchTrending();
+        // FIX: We cast to 'any' to bypass the TypeScript error for MangaPill
+        const popular = await (provider as any).fetchTrending();
         return NextResponse.json(popular);
     } catch (e) {
-        // Fallback for providers that crash on trending
-        const fallback = await provider.search('Isekai');
+        // Fallback: If fetchTrending doesn't exist (like on MangaPill), we search for a popular genre
+        const fallback = await provider.search('Action');
         return NextResponse.json(fallback);
     }
     
