@@ -51,11 +51,14 @@ export default function MangaDetails() {
       <div className="flex flex-col md:flex-row gap-8 mb-10">
         <div className="w-full md:w-1/3">
             {/* Safe Image Loading */}
-            <img 
-                src={data.image ? `/api/proxy?url=${encodeURIComponent(data.image)}` : '/placeholder.png'} 
-                className="w-full rounded-lg shadow-2xl border border-neutral-800" 
-                alt={data.title || 'Manga Cover'}
-            />
+          
+
+<img 
+  // FIX: Added &source={provider}
+  src={data.image ? `/api/proxy?url=${encodeURIComponent(data.image)}&source=${provider}` : '/placeholder.png'} 
+  className="w-full rounded-lg shadow-2xl border border-neutral-800" 
+  alt={data.title || 'Manga Cover'}
+/>
         </div>
         <div className="w-full md:w-2/3">
           <h1 className="text-4xl font-bold mb-4">{data.title || 'Unknown Title'}</h1>
