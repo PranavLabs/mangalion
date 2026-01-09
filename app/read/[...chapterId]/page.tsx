@@ -6,10 +6,8 @@ import Link from 'next/link';
 export default function Reader() {
   const params = useParams();
   const searchParams = useSearchParams();
-  
   const provider = searchParams.get('provider') || 'mangapill';
   const chapterId = Array.isArray(params.chapterId) ? params.chapterId.join('/') : params.chapterId;
-  
   const [pages, setPages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -35,9 +33,10 @@ export default function Reader() {
 
       <div className="w-full max-w-4xl flex flex-col items-center pb-20 bg-black">
         {pages.map((p, i) => (
+          // CLEAN IMAGE URL
           <img 
             key={i}
-            src={`/api/proxy?url=${encodeURIComponent(p.img)}&referer=https://mangapill.com/`}
+            src={`/api/proxy?url=${encodeURIComponent(p.img)}`}
             className="w-full h-auto mb-1"
             loading="lazy"
             alt={`Page ${i + 1}`}
