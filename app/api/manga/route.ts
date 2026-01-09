@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
 import { MANGA } from '@consumet/extensions';
 
-// Initialize your final 3 providers
 const providers = {
   mangapill: new MANGA.MangaPill(),
   mangahere: new MANGA.MangaHere(),
-  // NEW: WeebCentral replacing AsuraScans
-  weebcentral: new MANGA.WeebCentral(),
+  // REPLACEMENT: MangaReader is more stable than WeebCentral
+  mangareader: new MANGA.MangaReader(),
 };
 
 export async function GET(request: Request) {
@@ -15,7 +14,6 @@ export async function GET(request: Request) {
   const query = searchParams.get('q');
   const id = searchParams.get('id');
   
-  // Default to 'mangapill' if none selected
   const providerName = searchParams.get('provider') || 'mangapill';
   const provider = providers[providerName as keyof typeof providers] || providers.mangapill;
 
@@ -40,7 +38,8 @@ export async function GET(request: Request) {
         const popular = await (provider as any).fetchTrending();
         return NextResponse.json(popular);
     } catch (e) {
-        const fallback = await provider.search('Leveling'); 
+        // Fallback for providers that don't support trending
+        const fallback = await provider.search('One Piece'); 
         return NextResponse.json(fallback);
     }
     
