@@ -20,7 +20,6 @@ export default function Reader() {
     fetch(`/api/manga?type=chapter&id=${encodeURIComponent(chapterId)}&provider=${provider}`)
       .then(r => r.json())
       .then(data => {
-        // Handle different API responses (some return array directly, some inside 'images')
         if (Array.isArray(data)) {
             setPages(data);
         } else if (data && Array.isArray(data.images)) {
@@ -35,7 +34,6 @@ export default function Reader() {
 
   return (
     <div className="bg-neutral-900 min-h-screen flex flex-col items-center">
-       {/* HEADER */}
        <div className="w-full bg-neutral-800 p-4 sticky top-0 z-50 flex justify-between items-center shadow-lg border-b border-neutral-700">
             <Link href="/" className="text-white font-bold hover:text-blue-400">← Back</Link>
             <span className="text-gray-400 text-xs md:text-sm font-mono">
@@ -43,17 +41,13 @@ export default function Reader() {
             </span>
        </div>
 
-      {/* READER CANVAS */}
       <div className="w-full max-w-4xl flex flex-col items-center pb-20 bg-black min-h-screen">
-        {loading && <div className="mt-20 text-blue-400 animate-pulse">Fetching Chapter Images...</div>}
+        {loading && <div className="mt-20 text-blue-400 animate-pulse">Fetching Images...</div>}
         
         {pages.map((page, i) => {
-          // Normalize image URL (some providers return object {img: url}, others just string url)
           const imgUrl = typeof page === 'string' ? page : page.img;
-          
           return (
             <div key={i} className="w-full relative mb-1">
-               {/* CRITICAL: We pass &source={provider} to force the correct headers */}
                <img 
                  src={`/api/proxy?url=${encodeURIComponent(imgUrl)}&source=${provider}`}
                  className="w-full h-auto"
@@ -66,7 +60,7 @@ export default function Reader() {
         
         {!loading && pages.length === 0 && (
            <div className="p-10 text-red-400 text-center">
-               No images found. Try switching providers on the Home Page.
+               No images found. This chapter might be locked or empty.
            </div>
         )}
       </div>
