@@ -7,31 +7,35 @@ export async function GET(request: NextRequest) {
 
   if (!url) return new NextResponse('Missing URL', { status: 400 });
 
-  // CRITICAL FIX: Upgrade insecure HTTP links to HTTPS
-  // MangaHere often uses 'http' for webtoon images, which browsers block.
+  // 1. HTTP to HTTPS Upgrade
+  // MangaHere often gives 'http://...' links which browsers block. We fix that here.
   let targetUrl = decodeURIComponent(url);
   if (targetUrl.startsWith('http://')) {
-    targetUrl = targetUrl.replace('http://', 'https://');
+      targetUrl = targetUrl.replace('http://', 'https://');
+  }
+  // Handle protocol-relative URLs (starts with //)
+  if (targetUrl.startsWith('//')) {
+      targetUrl = `https:${targetUrl}`;
   }
 
-  // Headers Setup
   let headers: Record<string, string> = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
   };
 
-  // Source-Specific Rules
+  // 2. Source Rules
   if (source === 'mangapill') {
     headers['Referer'] = 'https://mangapill.com/';
   } 
   else if (source === 'mangahere') {
+    // MangaHere is strict about this
     headers['Referer'] = 'https://www.mangahere.cc/';
-    // Some MangaHere servers require cookies or stricter headers, but Referer is usually key
+    // Some MangaHere images are on different domains, but this referer usually works
   }
 
-  // Fallback Guessing
+  // Fallback: Guess based on URL
   if (!headers['Referer']) {
       if (targetUrl.includes('mangapill')) headers['Referer'] = 'https://mangapill.com/';
-      else if (targetUrl.includes('mangahere')) headers['Referer'] = 'https://www.mangahere.cc/';
+      else if (targetUrl.includes('mangahere') || targetUrl.includes('fmcdn')) headers['Referer'] = 'https://www.mangahere.cc/';
   }
 
   try {
@@ -40,8 +44,6 @@ export async function GET(request: NextRequest) {
       method: 'GET',
       responseType: 'arraybuffer',
       headers: headers,
-      // Disable SSL verification strictly for these old image servers if needed
-      // httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false }) 
     });
 
     const contentType = response.headers['content-type'] || 'image/jpeg';
