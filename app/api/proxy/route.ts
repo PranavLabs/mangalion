@@ -5,30 +5,42 @@ export async function GET(request: NextRequest) {
   const url = request.nextUrl.searchParams.get('url');
   if (!url) return new NextResponse('Missing URL', { status: 400 });
 
-  // SMART REFERER DETECTION
-  // We determine the correct 'Referer' header based on the image domain.
-  let referer = 'https://google.com'; // Default safe referer
-  
-  if (url.includes('mangapill')) referer = 'https://mangapill.com/';
-  else if (url.includes('mangakakalot')) referer = 'https://mangakakalot.com/';
-  else if (url.includes('manganato')) referer = 'https://manganato.com/';
-  else if (url.includes('chapmanganato')) referer = 'https://chapmanganato.com/';
-  else if (url.includes('mangadex')) referer = 'https://mangadex.org/';
+  // 1. DECODE THE URL
+  // Sometimes the URL comes in encoded, we need the raw link
+  const targetUrl = decodeURIComponent(url);
 
-  // ComicK usually works without a specific referer, or allows generic ones.
+  // 2. SMART REFERER SELECTION
+  // We check keywords in the URL to decide which "ID Badge" to show the server
+  let referer = 'https://google.com'; // Default
+
+  if (targetUrl.includes('mangapill')) {
+    referer = 'https://mangapill.com/';
+  } 
+  else if (targetUrl.includes('comick') || targetUrl.includes('comix')) {
+    referer = 'https://comick.io/'; // The new ComicK domain
+  } 
+  else if (targetUrl.includes('mangadex')) {
+    referer = 'https://mangadex.org/';
+  } 
+  else if (targetUrl.includes('manganato') || targetUrl.includes('chapmanganato')) {
+    referer = 'https://chapmanganato.com/';
+  }
 
   try {
     const response = await axios({
-      url: url,
+      url: targetUrl,
       method: 'GET',
       responseType: 'arraybuffer',
       headers: {
         'Referer': referer,
+        // Using a real browser User-Agent is critical for ComicK/MangaPill
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Origin': new URL(referer).origin // Some sites check Origin too
       },
     });
 
     const contentType = response.headers['content-type'] || 'image/jpeg';
+    
     return new NextResponse(response.data, {
       status: 200,
       headers: {
@@ -38,7 +50,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Proxy Error for:", url);
+    console.error(`Proxy Fail for ${targetUrl}`);
     return new NextResponse('Failed to load image', { status: 500 });
   }
 }
