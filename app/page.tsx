@@ -57,15 +57,18 @@ export default function Home() {
           {/* PROVIDER DROPDOWN */}
           <div className="w-full md:w-auto flex flex-col">
             <label className="text-xs text-gray-500 mb-1 ml-1 uppercase font-bold tracking-wider">Source Engine</label>
-            <select 
-              value={provider}
-              onChange={(e) => setProvider(e.target.value)}
-              className="p-4 bg-neutral-900 rounded-lg border border-neutral-800 text-blue-400 font-bold focus:outline-none focus:border-blue-600 cursor-pointer appearance-none min-w-[200px]"
-            >
-              <option value="mangapill">MangaPill (Fast)</option>
-              <option value="comick">ComicK (Huge Lib)</option>
-              <option value="mangadex">MangaDex (Official)</option>
-            </select>
+
+
+<select 
+  value={provider}
+  onChange={(e) => setProvider(e.target.value)}
+  className="p-4 bg-neutral-900 rounded-lg border border-neutral-800 text-blue-400 font-bold focus:outline-none focus:border-blue-600 cursor-pointer appearance-none min-w-[200px]"
+>
+  <option value="mangapill">MangaPill (Fast)</option>
+  <option value="mangakakalot">Mangakakalot (Stable)</option>
+  {/* NEW OPTION */}
+  <option value="mangahere">MangaHere (Classic)</option>
+</select>
           </div>
 
           {/* SEARCH BAR */}
