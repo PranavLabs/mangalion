@@ -3,11 +3,19 @@ import axios from 'axios';
 
 export async function GET(request: NextRequest) {
   const url = request.nextUrl.searchParams.get('url');
-  
-  // MangaPill requires this specific referer
-  const referer = request.nextUrl.searchParams.get('referer') || 'https://mangapill.com/';
-
   if (!url) return new NextResponse('Missing URL', { status: 400 });
+
+  // SMART REFERER DETECTION
+  // We determine the correct 'Referer' header based on the image domain.
+  let referer = 'https://google.com'; // Default safe referer
+  
+  if (url.includes('mangapill')) referer = 'https://mangapill.com/';
+  else if (url.includes('mangakakalot')) referer = 'https://mangakakalot.com/';
+  else if (url.includes('manganato')) referer = 'https://manganato.com/';
+  else if (url.includes('chapmanganato')) referer = 'https://chapmanganato.com/';
+  else if (url.includes('mangadex')) referer = 'https://mangadex.org/';
+
+  // ComicK usually works without a specific referer, or allows generic ones.
 
   try {
     const response = await axios({
@@ -30,6 +38,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    return new NextResponse('Error', { status: 500 });
+    console.error("Proxy Error for:", url);
+    return new NextResponse('Failed to load image', { status: 500 });
   }
 }
