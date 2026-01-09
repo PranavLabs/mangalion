@@ -28,8 +28,8 @@ export async function GET(request: NextRequest) {
   else if (source === 'mangapill') {
     headers['Referer'] = 'https://mangapill.com/';
   } 
-  else if (source === 'asurascans' || targetUrl.includes('asura')) {
-    headers['Referer'] = 'https://asuracomic.net/'; 
+  else if (source === 'weebcentral' || targetUrl.includes('weebcentral')) {
+    headers['Referer'] = 'https://weebcentral.com/'; 
   }
 
   // Fallback
