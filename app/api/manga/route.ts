@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
 import { MANGA } from '@consumet/extensions';
 
-// Initialize providers
+// Initialize your final 3 providers
 const providers = {
   mangapill: new MANGA.MangaPill(),
-  mangakakalot: new MANGA.Mangakakalot(),
-  // NEW: Added MangaHere, Removed MangaDex
-  mangahere: new MANGA.MangaHere(), 
+  mangahere: new MANGA.MangaHere(),
+  asurascans: new MANGA.AsuraScans(),
 };
 
 export async function GET(request: Request) {
@@ -15,7 +14,7 @@ export async function GET(request: Request) {
   const query = searchParams.get('q');
   const id = searchParams.get('id');
   
-  // Default to 'mangapill'
+  // Default to 'mangapill' if none selected
   const providerName = searchParams.get('provider') || 'mangapill';
   const provider = providers[providerName as keyof typeof providers] || providers.mangapill;
 
@@ -35,12 +34,14 @@ export async function GET(request: Request) {
       return NextResponse.json(results);
     }
     
-    // Trending Logic
+    // Trending/Popular Logic
     try {
+        // We cast to 'any' to avoid TypeScript errors if a provider lacks this specific method
         const popular = await (provider as any).fetchTrending();
         return NextResponse.json(popular);
     } catch (e) {
-        const fallback = await provider.search('Isekai');
+        // Fallback: search for a generic term if trending fails
+        const fallback = await provider.search('Leveling'); 
         return NextResponse.json(fallback);
     }
     
