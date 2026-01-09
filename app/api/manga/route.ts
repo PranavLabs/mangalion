@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
 import { MANGA } from '@consumet/extensions';
 
+// KEEPING IT SIMPLE: Just your 2 chosen providers
 const providers = {
   mangapill: new MANGA.MangaPill(),
   mangahere: new MANGA.MangaHere(),
-  // REPLACEMENT: MangaReader is more stable than WeebCentral
-  mangareader: new MANGA.MangaReader(),
 };
 
 export async function GET(request: Request) {
@@ -38,13 +37,11 @@ export async function GET(request: Request) {
         const popular = await (provider as any).fetchTrending();
         return NextResponse.json(popular);
     } catch (e) {
-        // Fallback for providers that don't support trending
-        const fallback = await provider.search('One Piece'); 
+        const fallback = await provider.search('Action'); 
         return NextResponse.json(fallback);
     }
     
   } catch (err) {
-    console.error(`Error with ${providerName}:`, err);
     return NextResponse.json({ error: 'Fetch failed' }, { status: 500 });
   }
 }
