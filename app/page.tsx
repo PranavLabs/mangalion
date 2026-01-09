@@ -57,7 +57,7 @@ export default function Home() {
             >
               <option value="mangapill">MangaPill (Fast)</option>
               <option value="mangahere">MangaHere (Classic)</option>
-              <option value="asurascans">AsuraScans (Manhwa)</option>
+              <option value="weebcentral">WeebCentral</option>
             </select>
           </div>
 
