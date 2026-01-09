@@ -30,83 +30,63 @@ async function fetchMangaHereImages(chapterId: string) {
         'Referer': 'https://www.mangahere.cc/',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate',
       },
       timeout: 15000,
     });
 
     console.log('[MangaHere] Got HTML, length:', data.length);
 
-    // Extract image URLs from the HTML
-    // Mangahere stores images in script with a list or in img data attributes
-
-    // Method 1: Look for window object data or script variables
-    // Pattern: window.dm_imageURL = ['url1', 'url2', ...]
-    let imageMatch = data.match(/window\.dm_imageURL\s*=\s*(\[.*?\])/s);
-    if (!imageMatch) {
-      imageMatch = data.match(/dm_imageURL\s*=\s*(\[.*?\])/s);
-    }
-    if (!imageMatch) {
-      imageMatch = data.match(/var\s+image\s*=\s*(\[.*?\])/s);
-    }
-
-    if (imageMatch && imageMatch[1]) {
-      console.log('[MangaHere] Found image array in script');
-      try {
-        // Clean the array string
-        let arrayStr = imageMatch[1];
-        // Try to eval it
-        const images = eval('(' + arrayStr + ')');
-        if (Array.isArray(images) && images.length > 0) {
-          console.log('[MangaHere] Extracted', images.length, 'images');
-          return images.map((img: string) => ({
-            img: img.startsWith('//') ? `https:${img}` : img,
-          }));
+    // Extract ALL image URLs from img src attributes - MANGAHERE STORES THEM IN THE HTML
+    const images: string[] = [];
+    
+    // Look for img tags with src attribute containing actual image URLs
+    // Pattern: src="https://zjcdn.mangahere.org/store/manga/..."
+    const imgSrcRegex = /src="(https?:\/\/[^"]*(?:jpg|png|webp|jpeg)[^"]*)"/gi;
+    let match;
+    
+    while ((match = imgSrcRegex.exec(data)) !== null) {
+      const src = match[1];
+      // Filter: only include actual manga CDN images, not UI images
+      if (
+        src &&
+        (src.includes('zjcdn') || src.includes('fmcdn')) &&
+        !src.includes('loading') &&
+        !src.includes('logo') &&
+        !src.includes('icon')
+      ) {
+        if (!images.includes(src)) {
+          images.push(src);
         }
-      } catch (e) {
-        console.log('[MangaHere] Array eval failed');
       }
     }
 
-    // Method 2: Extract from all img tags with specific patterns
-    console.log('[MangaHere] Extracting from img tags');
-    const imgRegex = /<img[^>]+src=["']([^"']*jpg[^"']*)["'][^>]*>/gi;
-    const matches = [...data.matchAll(imgRegex)];
-    
-    if (matches.length > 0) {
-      console.log('[MangaHere] Found', matches.length, 'jpg images');
-      const images = matches
-        .map((m) => {
-          let url = m[1];
-          if (url.startsWith('//')) {
-            return `https:${url}`;
-          } else if (!url.startsWith('http')) {
-            return `https://${url}`;
-          }
-          return url;
-        })
-        .filter((url) => url && (url.includes('zjcdn') || url.includes('mangahere') || url.includes('fmcdn')));
-      
-      if (images.length > 0) {
-        return images.map((img) => ({ img }));
+    if (images.length > 0) {
+      console.log('[MangaHere] Found', images.length, 'images from src attributes');
+      return images.map((img) => ({ img }));
+    }
+
+    // Alternative: Look for data-src (lazy loading)
+    const dataSrcRegex = /data-(?:src|original)="(https?:\/\/[^"]*(?:jpg|png|webp|jpeg)[^"]*)"/gi;
+    while ((match = dataSrcRegex.exec(data)) !== null) {
+      const src = match[1];
+      if (src && (src.includes('zjcdn') || src.includes('fmcdn'))) {
+        if (!images.includes(src)) {
+          images.push(src);
+        }
       }
     }
 
-    // Method 3: Look in data attributes
-    console.log('[MangaHere] Looking in data attributes');
-    const dataRegex = /data-original=["']([^"']+)["']/g;
-    const dataMatches = [...data.matchAll(dataRegex)];
-    
-    if (dataMatches.length > 0) {
-      console.log('[MangaHere] Found in data-original');
-      return dataMatches
-        .map((m) => {
-          let url = m[1];
-          return url.startsWith('//') ? `https:${url}` : url;
-        })
-        .map((img) => ({ img }));
+    if (images.length > 0) {
+      console.log('[MangaHere] Found', images.length, 'images from data-src');
+      return images.map((img) => ({ img }));
     }
 
-    console.log('[MangaHere] No images found');
+    // Debug: Log the HTML to see what we're getting
+    const htmlSnippet = data.substring(data.indexOf('<body'), Math.min(data.indexOf('<body') + 10000, data.length));
+    console.log('[MangaHere] HTML body snippet (first 10000 chars):');
+    console.log(htmlSnippet);
+
     return [];
   } catch (e: any) {
     console.error('[MangaHere] Error:', e.response?.status || e.code, e.message);
@@ -134,7 +114,7 @@ export async function GET(request: Request) {
         const pages = await provider.fetchChapterPages(id);
 
         if ((!pages || pages.length === 0) && providerName === 'mangahere') {
-          console.log('[API] Consumet empty, trying manual scraper');
+          console.log('[API] Consumet empty, trying manual scraper for:', id);
           const manualPages = await fetchMangaHereImages(id);
           return NextResponse.json(manualPages);
         }
@@ -142,7 +122,7 @@ export async function GET(request: Request) {
         return NextResponse.json(pages);
       } catch (e) {
         if (providerName === 'mangahere') {
-          console.log('[API] Consumet crashed, trying manual scraper');
+          console.log('[API] Consumet error, trying manual scraper for:', id);
           const manualPages = await fetchMangaHereImages(id);
           return NextResponse.json(manualPages);
         }
