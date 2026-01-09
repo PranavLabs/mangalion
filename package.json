@@ -12,6 +12,7 @@
     "@consumet/extensions": "^1.4.9",
     "axios": "^1.6.2",
     "next": "14.2.3",
+    "puppeteer": "^21.6.1",
     "react": "^18",
     "react-dom": "^18",
     "lucide-react": "^0.294.0"
@@ -30,4 +31,3 @@
   }
 }
 
- 
