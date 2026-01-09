@@ -8,6 +8,7 @@ export default function Home() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   
+  // Existing state logic
   const [provider, setProvider] = useState('mangapill');
 
   const fetchManga = async (q?: string) => {
@@ -30,6 +31,7 @@ export default function Home() {
             setMangaList([]);
         }
     } catch (e) { 
+        console.error("Failed to fetch manga:", e);
         setMangaList([]);
     }
     setLoading(false);
@@ -41,44 +43,59 @@ export default function Home() {
   }, [provider]); 
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-white p-4 md:p-8">
-      <div className="max-w-7xl mx-auto">
-        
-        {/* HEADER */}
-        <div className="flex flex-col md:flex-row gap-4 mb-8 max-w-4xl mx-auto items-center">
-          <div className="w-full md:w-auto flex flex-col">
-            <label className="text-xs text-gray-500 mb-1 ml-1 uppercase font-bold tracking-wider">Source</label>
-            <select 
-              value={provider}
-              onChange={(e) => setProvider(e.target.value)}
-              className="p-4 bg-neutral-900 rounded-lg border border-neutral-800 text-blue-400 font-bold focus:outline-none focus:border-blue-600 cursor-pointer appearance-none min-w-[200px]"
-            >
-              <option value="mangapill">MangaPill (Fast)</option>
-              <option value="mangahere">MangaHere (Classic)</option>
-            </select>
-          </div>
+    // LIQUID BACKGROUND
+    <div className="min-h-screen bg-[#0f0f11] text-white selection:bg-pink-500 selection:text-white overflow-x-hidden relative">
+      
+      {/* Ambient Orbs (The "Liquid" Effect) */}
+      <div className="fixed top-[-20%] left-[-10%] w-[600px] h-[600px] bg-purple-600/30 rounded-full blur-[120px] pointer-events-none mix-blend-screen animate-pulse" />
+      <div className="fixed bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[100px] pointer-events-none mix-blend-screen" />
 
-          <div className="flex-1 w-full flex gap-2">
-            <input 
-              className="flex-1 p-4 bg-neutral-900 rounded-lg border border-neutral-800 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-blue-900 transition-all"
-              placeholder={`Search on ${provider}...`}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && fetchManga(search)}
-            />
-            <button 
-                onClick={() => fetchManga(search)} 
-                className="bg-blue-700 hover:bg-blue-600 px-8 rounded-lg font-bold transition-colors"
-            >
-                GO
-            </button>
-          </div>
+      <div className="max-w-7xl mx-auto p-4 md:p-8 relative z-10">
+        
+        {/* HEADER: GLASS BAR */}
+        <div className="sticky top-4 z-50 mb-12">
+            <div className="flex flex-col md:flex-row gap-4 p-3 bg-white/5 backdrop-blur-xl border border-white/10 rounded-[2rem] shadow-2xl ring-1 ring-black/5">
+            
+            {/* SOURCE PILL */}
+            <div className="relative group">
+                <select 
+                value={provider}
+                onChange={(e) => setProvider(e.target.value)}
+                className="appearance-none w-full md:w-48 bg-black/20 hover:bg-black/40 text-white font-medium py-3 px-6 rounded-3xl border border-white/5 focus:outline-none focus:ring-2 focus:ring-pink-500/50 transition-all cursor-pointer"
+                >
+                    <option value="mangapill">MangaPill</option>
+                    <option value="mangahere">MangaHere</option>
+                </select>
+                {/* Custom Arrow */}
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-50 text-xs">
+                    ▼
+                </div>
+            </div>
+
+            {/* SEARCH PILL */}
+            <div className="flex-1 flex gap-2">
+                <input 
+                className="flex-1 bg-transparent text-white placeholder-white/40 px-6 py-3 focus:outline-none text-lg font-light"
+                placeholder={`Search on ${provider}...`}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && fetchManga(search)}
+                />
+                <button 
+                    onClick={() => fetchManga(search)} 
+                    className="bg-white text-black hover:bg-pink-500 hover:text-white px-8 rounded-3xl font-bold transition-all duration-300 shadow-lg shadow-white/10"
+                >
+                    GO
+                </button>
+            </div>
+            </div>
         </div>
 
-        {/* GRID */}
+        {/* CONTENT GRID */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 animate-pulse">
-            <div className="text-xl font-bold text-gray-500">Loading {provider}...</div>
+          <div className="flex flex-col items-center justify-center py-32 space-y-4">
+             <div className="w-12 h-12 border-4 border-pink-500 border-t-transparent rounded-full animate-spin" />
+             <div className="text-white/50 font-light tracking-widest animate-pulse">LOADING LIBRARY</div>
           </div>
         ) : (
           <>
@@ -88,26 +105,39 @@ export default function Home() {
                     <Link 
                         href={`/manga/${m.id}?provider=${provider}`} 
                         key={m.id} 
-                        className="group flex flex-col"
+                        className="group relative"
                     >
-                        <div className="relative aspect-[2/3] overflow-hidden rounded-xl bg-neutral-900 mb-3 shadow-lg border border-neutral-800">
+                        {/* GLASS CARD */}
+                        <div className="aspect-[2/3] rounded-3xl overflow-hidden bg-white/5 border border-white/10 shadow-2xl relative transition-all duration-500 group-hover:-translate-y-2 group-hover:shadow-pink-500/20 group-hover:border-pink-500/30">
                             <img 
                                 src={m.image ? `/api/proxy?url=${encodeURIComponent(m.image)}&source=${provider}` : '/placeholder.png'} 
-                                className="object-cover w-full h-full group-hover:scale-110 transition duration-500 ease-out opacity-90 group-hover:opacity-100"
+                                className="object-cover w-full h-full opacity-80 group-hover:opacity-100 transition-opacity duration-500"
                                 alt={m.title}
                                 loading="lazy"
                             />
+                            {/* Glossy Overlay */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-white/10 opacity-60 group-hover:opacity-40 transition-opacity" />
+                            
+                            {/* Text Overlay */}
+                            <div className="absolute bottom-0 left-0 right-0 p-4">
+                                <h3 className="text-white font-bold truncate text-shadow-sm drop-shadow-md">
+                                    {m.title}
+                                </h3>
+                                <div className="flex items-center gap-2 mt-2">
+                                    <span className="w-2 h-2 rounded-full bg-pink-500 animate-pulse" />
+                                    <p className="text-xs text-pink-200/80 uppercase tracking-wider font-semibold">
+                                        {provider}
+                                    </p>
+                                </div>
+                            </div>
                         </div>
-                        <h3 className="text-sm font-bold text-gray-300 truncate group-hover:text-blue-400">
-                            {m.title}
-                        </h3>
                     </Link>
                     ))}
                 </div>
             ) : (
-                <div className="text-center py-20">
-                    <h2 className="text-2xl font-bold text-gray-400">No results found</h2>
-                    <p className="text-gray-500 mt-2">Try a different search term.</p>
+                <div className="text-center py-20 bg-white/5 backdrop-blur-md rounded-3xl border border-white/10 max-w-lg mx-auto">
+                    <h2 className="text-3xl font-bold text-white/20">VOID</h2>
+                    <p className="text-white/40 mt-2">No reality found. Search again.</p>
                 </div>
             )}
           </>
