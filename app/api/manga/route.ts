@@ -13,9 +13,7 @@ async function fetchMangaHereImages(chapterId: string) {
   try {
     const baseUrl = 'https://www.mangahere.cc';
 
-    // chapterId comes as "solo_leveling/c200" -> needs "manga/solo_leveling/c200/1.html"
     let targetUrl: string;
-
     if (chapterId.startsWith('http')) {
       targetUrl = chapterId;
     } else {
@@ -28,112 +26,87 @@ async function fetchMangaHereImages(chapterId: string) {
     const { data } = await axios.get(targetUrl, {
       headers: {
         'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Referer': 'https://www.mangahere.cc/',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
       },
       timeout: 15000,
     });
 
     console.log('[MangaHere] Got HTML, length:', data.length);
 
-    // Method 1: Look for the actual manga image array
-    // Mangahere stores images in: var dm_imageURL = [...] or similar
-    const patterns = [
-      /var\s+dm_imageURL\s*=\s*(\[[^\]]*\])/,  // Most common for current Mangahere
-      /var\s+image\s*=\s*(\[[^\]]*\])/,        // Alternative format
-      /var\s+images\s*=\s*(\[[^\]]*\])/,       // Another alternative
-      /['"]image['"]\s*:\s*(\[[^\]]*\])/,      // JSON format
-    ];
+    // Extract image URLs from the HTML
+    // Mangahere stores images in script with a list or in img data attributes
 
-    for (let i = 0; i < patterns.length; i++) {
-      const match = data.match(patterns[i]);
-      if (match && match[1]) {
-        console.log('[MangaHere] Found pattern', i + 1, 'for image array');
-        try {
-          // Clean up the array string and evaluate it
-          let arrayStr = match[1];
-          // Remove any trailing commas and fix quotes if needed
-          arrayStr = arrayStr.replace(/,\s*\]/g, ']');
-          
-          const rawImages = eval(arrayStr);
-          
-          if (Array.isArray(rawImages) && rawImages.length > 0) {
-            // Filter out empty strings and non-image URLs
-            const validImages = rawImages.filter((img: any) => {
-              const url = String(img);
-              return url && (url.includes('jpg') || url.includes('png') || url.includes('webp') || url.includes('jpeg'));
-            });
+    // Method 1: Look for window object data or script variables
+    // Pattern: window.dm_imageURL = ['url1', 'url2', ...]
+    let imageMatch = data.match(/window\.dm_imageURL\s*=\s*(\[.*?\])/s);
+    if (!imageMatch) {
+      imageMatch = data.match(/dm_imageURL\s*=\s*(\[.*?\])/s);
+    }
+    if (!imageMatch) {
+      imageMatch = data.match(/var\s+image\s*=\s*(\[.*?\])/s);
+    }
 
-            if (validImages.length > 0) {
-              console.log('[MangaHere] Extracted', validImages.length, 'valid images from pattern', i + 1);
-              return validImages.map((img: any) => {
-                let url = String(img);
-                if (url.startsWith('//')) {
-                  url = `https:${url}`;
-                } else if (!url.startsWith('http')) {
-                  url = `https://${url}`;
-                }
-                return { img: url };
-              });
-            }
-          }
-        } catch (e) {
-          console.log('[MangaHere] Pattern', i + 1, 'eval failed:', e);
-          continue;
+    if (imageMatch && imageMatch[1]) {
+      console.log('[MangaHere] Found image array in script');
+      try {
+        // Clean the array string
+        let arrayStr = imageMatch[1];
+        // Try to eval it
+        const images = eval('(' + arrayStr + ')');
+        if (Array.isArray(images) && images.length > 0) {
+          console.log('[MangaHere] Extracted', images.length, 'images');
+          return images.map((img: string) => ({
+            img: img.startsWith('//') ? `https:${img}` : img,
+          }));
         }
+      } catch (e) {
+        console.log('[MangaHere] Array eval failed');
       }
     }
 
-    // Method 2: Extract images from img tags in the reader area specifically
-    console.log('[MangaHere] Trying img tag extraction from reader');
-    const readerImgRegex = /<img[^>]+data-(?:src|original)=["']([^"']+)["'][^>]*>/g;
-    const imgMatches = [...data.matchAll(readerImgRegex)];
+    // Method 2: Extract from all img tags with specific patterns
+    console.log('[MangaHere] Extracting from img tags');
+    const imgRegex = /<img[^>]+src=["']([^"']*jpg[^"']*)["'][^>]*>/gi;
+    const matches = [...data.matchAll(imgRegex)];
     
-    if (imgMatches.length > 0) {
-      console.log('[MangaHere] Found', imgMatches.length, 'images with data-src/data-original');
-      return imgMatches.map((match) => {
-        let url = match[1];
-        if (url.startsWith('//')) {
-          url = `https:${url}`;
-        } else if (!url.startsWith('http')) {
-          url = `https://${url}`;
-        }
-        return { img: url };
-      });
-    }
-
-    // Method 3: Fallback to all img src (but filter out UI images)
-    console.log('[MangaHere] Fallback to all img tags');
-    const allImgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/g;
-    const allMatches = [...data.matchAll(allImgRegex)];
-    const images: string[] = [];
-
-    allMatches.forEach((match) => {
-      const src = match[1];
-      // Filter out static/UI images
-      if (
-        src &&
-        (src.includes('.jpg') || src.includes('.png') || src.includes('.webp')) &&
-        !src.includes('static.mangahere.cc') &&
-        !src.includes('logo') &&
-        !src.includes('icon') &&
-        !src.includes('avatar') &&
-        !src.includes('star-') &&
-        !src.includes('nopicture')
-      ) {
-        let cleanUrl = src.startsWith('//') ? `https:${src}` : src;
-        if (!images.includes(cleanUrl)) {
-          images.push(cleanUrl);
-        }
+    if (matches.length > 0) {
+      console.log('[MangaHere] Found', matches.length, 'jpg images');
+      const images = matches
+        .map((m) => {
+          let url = m[1];
+          if (url.startsWith('//')) {
+            return `https:${url}`;
+          } else if (!url.startsWith('http')) {
+            return `https://${url}`;
+          }
+          return url;
+        })
+        .filter((url) => url && (url.includes('zjcdn') || url.includes('mangahere') || url.includes('fmcdn')));
+      
+      if (images.length > 0) {
+        return images.map((img) => ({ img }));
       }
-    });
-
-    if (images.length > 0) {
-      console.log('[MangaHere] Extracted', images.length, 'images from fallback');
-      return images.map((img) => ({ img }));
     }
 
-    console.log('[MangaHere] No valid images found');
+    // Method 3: Look in data attributes
+    console.log('[MangaHere] Looking in data attributes');
+    const dataRegex = /data-original=["']([^"']+)["']/g;
+    const dataMatches = [...data.matchAll(dataRegex)];
+    
+    if (dataMatches.length > 0) {
+      console.log('[MangaHere] Found in data-original');
+      return dataMatches
+        .map((m) => {
+          let url = m[1];
+          return url.startsWith('//') ? `https:${url}` : url;
+        })
+        .map((img) => ({ img }));
+    }
+
+    console.log('[MangaHere] No images found');
     return [];
   } catch (e: any) {
     console.error('[MangaHere] Error:', e.response?.status || e.code, e.message);
@@ -158,10 +131,8 @@ export async function GET(request: Request) {
 
     if (type === 'chapter' && id) {
       try {
-        // Try Standard Library First
         const pages = await provider.fetchChapterPages(id);
 
-        // If library returns empty array, try manual scraper for Mangahere
         if ((!pages || pages.length === 0) && providerName === 'mangahere') {
           console.log('[API] Consumet empty, trying manual scraper');
           const manualPages = await fetchMangaHereImages(id);
@@ -170,7 +141,6 @@ export async function GET(request: Request) {
 
         return NextResponse.json(pages);
       } catch (e) {
-        // If library crashes, try manual scraper for Mangahere
         if (providerName === 'mangahere') {
           console.log('[API] Consumet crashed, trying manual scraper');
           const manualPages = await fetchMangaHereImages(id);
