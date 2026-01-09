@@ -46,7 +46,7 @@ export default function Home() {
     // LIQUID BACKGROUND
     <div className="min-h-screen bg-[#0f0f11] text-white selection:bg-pink-500 selection:text-white overflow-x-hidden relative">
       
-      {/* Ambient Orbs (The "Liquid" Effect) */}
+      {/* Ambient Orbs */}
       <div className="fixed top-[-20%] left-[-10%] w-[600px] h-[600px] bg-purple-600/30 rounded-full blur-[120px] pointer-events-none mix-blend-screen animate-pulse" />
       <div className="fixed bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[100px] pointer-events-none mix-blend-screen" />
 
@@ -57,7 +57,7 @@ export default function Home() {
             <div className="flex flex-col md:flex-row gap-4 p-3 bg-white/5 backdrop-blur-xl border border-white/10 rounded-[2rem] shadow-2xl ring-1 ring-black/5">
             
             {/* SOURCE PILL */}
-            <div className="relative group">
+            <div className="relative group w-full md:w-auto">
                 <select 
                 value={provider}
                 onChange={(e) => setProvider(e.target.value)}
@@ -73,17 +73,19 @@ export default function Home() {
             </div>
 
             {/* SEARCH PILL */}
-            <div className="flex-1 flex gap-2">
+            <div className="flex-1 flex gap-2 w-full">
+                {/* FIX: added min-w-0 to allow shrinking on mobile */}
                 <input 
-                className="flex-1 bg-transparent text-white placeholder-white/40 px-6 py-3 focus:outline-none text-lg font-light"
-                placeholder={`Search on ${provider}...`}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && fetchManga(search)}
+                  className="flex-1 min-w-0 bg-transparent text-white placeholder-white/40 px-4 md:px-6 py-3 focus:outline-none text-base md:text-lg font-light"
+                  placeholder={`Search on ${provider}...`}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && fetchManga(search)}
                 />
+                {/* FIX: reduced padding on mobile (px-6) vs desktop (px-8), added shrink-0 */}
                 <button 
                     onClick={() => fetchManga(search)} 
-                    className="bg-white text-black hover:bg-pink-500 hover:text-white px-8 rounded-3xl font-bold transition-all duration-300 shadow-lg shadow-white/10"
+                    className="shrink-0 bg-white text-black hover:bg-pink-500 hover:text-white px-6 md:px-8 rounded-3xl font-bold transition-all duration-300 shadow-lg shadow-white/10"
                 >
                     GO
                 </button>
