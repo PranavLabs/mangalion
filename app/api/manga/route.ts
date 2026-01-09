@@ -36,42 +36,104 @@ async function fetchMangaHereImages(chapterId: string) {
 
     console.log('[MangaHere] Got HTML, length:', data.length);
 
-    // Extract images from JavaScript variable: var image = [...]
-    const imageMatch = data.match(/var\s+image\s*=\s*(\[[^\]]+\])/);
-    
-    if (imageMatch && imageMatch[1]) {
-      console.log('[MangaHere] Found image array');
-      try {
-        const rawImages = eval(imageMatch[1]);
-        if (Array.isArray(rawImages) && rawImages.length > 0) {
-          console.log('[MangaHere] Extracted', rawImages.length, 'images');
-          return rawImages.map((img: string) => ({
-            img: img.startsWith('//') ? `https:${img}` : img,
-          }));
+    // Method 1: Look for the actual manga image array
+    // Mangahere stores images in: var dm_imageURL = [...] or similar
+    const patterns = [
+      /var\s+dm_imageURL\s*=\s*(\[[^\]]*\])/,  // Most common for current Mangahere
+      /var\s+image\s*=\s*(\[[^\]]*\])/,        // Alternative format
+      /var\s+images\s*=\s*(\[[^\]]*\])/,       // Another alternative
+      /['"]image['"]\s*:\s*(\[[^\]]*\])/,      // JSON format
+    ];
+
+    for (let i = 0; i < patterns.length; i++) {
+      const match = data.match(patterns[i]);
+      if (match && match[1]) {
+        console.log('[MangaHere] Found pattern', i + 1, 'for image array');
+        try {
+          // Clean up the array string and evaluate it
+          let arrayStr = match[1];
+          // Remove any trailing commas and fix quotes if needed
+          arrayStr = arrayStr.replace(/,\s*\]/g, ']');
+          
+          const rawImages = eval(arrayStr);
+          
+          if (Array.isArray(rawImages) && rawImages.length > 0) {
+            // Filter out empty strings and non-image URLs
+            const validImages = rawImages.filter((img: any) => {
+              const url = String(img);
+              return url && (url.includes('jpg') || url.includes('png') || url.includes('webp') || url.includes('jpeg'));
+            });
+
+            if (validImages.length > 0) {
+              console.log('[MangaHere] Extracted', validImages.length, 'valid images from pattern', i + 1);
+              return validImages.map((img: any) => {
+                let url = String(img);
+                if (url.startsWith('//')) {
+                  url = `https:${url}`;
+                } else if (!url.startsWith('http')) {
+                  url = `https://${url}`;
+                }
+                return { img: url };
+              });
+            }
+          }
+        } catch (e) {
+          console.log('[MangaHere] Pattern', i + 1, 'eval failed:', e);
+          continue;
         }
-      } catch (e) {
-        console.log('[MangaHere] Eval failed');
       }
     }
 
-    // Fallback: Extract from img src attributes
-    console.log('[MangaHere] Trying img tag extraction');
-    const imgMatches = [...data.matchAll(/<img[^>]+src=["']([^"']+)["'][^>]*>/g)];
+    // Method 2: Extract images from img tags in the reader area specifically
+    console.log('[MangaHere] Trying img tag extraction from reader');
+    const readerImgRegex = /<img[^>]+data-(?:src|original)=["']([^"']+)["'][^>]*>/g;
+    const imgMatches = [...data.matchAll(readerImgRegex)];
+    
+    if (imgMatches.length > 0) {
+      console.log('[MangaHere] Found', imgMatches.length, 'images with data-src/data-original');
+      return imgMatches.map((match) => {
+        let url = match[1];
+        if (url.startsWith('//')) {
+          url = `https:${url}`;
+        } else if (!url.startsWith('http')) {
+          url = `https://${url}`;
+        }
+        return { img: url };
+      });
+    }
+
+    // Method 3: Fallback to all img src (but filter out UI images)
+    console.log('[MangaHere] Fallback to all img tags');
+    const allImgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/g;
+    const allMatches = [...data.matchAll(allImgRegex)];
     const images: string[] = [];
 
-    imgMatches.forEach((match) => {
+    allMatches.forEach((match) => {
       const src = match[1];
-      if (src && (src.includes('.jpg') || src.includes('.png') || src.includes('.webp'))) {
-        images.push(src.startsWith('//') ? `https:${src}` : src);
+      // Filter out static/UI images
+      if (
+        src &&
+        (src.includes('.jpg') || src.includes('.png') || src.includes('.webp')) &&
+        !src.includes('static.mangahere.cc') &&
+        !src.includes('logo') &&
+        !src.includes('icon') &&
+        !src.includes('avatar') &&
+        !src.includes('star-') &&
+        !src.includes('nopicture')
+      ) {
+        let cleanUrl = src.startsWith('//') ? `https:${src}` : src;
+        if (!images.includes(cleanUrl)) {
+          images.push(cleanUrl);
+        }
       }
     });
 
     if (images.length > 0) {
-      console.log('[MangaHere] Extracted', images.length, 'images from img tags');
+      console.log('[MangaHere] Extracted', images.length, 'images from fallback');
       return images.map((img) => ({ img }));
     }
 
-    console.log('[MangaHere] No images found');
+    console.log('[MangaHere] No valid images found');
     return [];
   } catch (e: any) {
     console.error('[MangaHere] Error:', e.response?.status || e.code, e.message);
@@ -138,4 +200,3 @@ export async function GET(request: Request) {
     );
   }
 }
-
