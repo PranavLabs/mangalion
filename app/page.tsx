@@ -57,7 +57,8 @@ export default function Home() {
             >
               <option value="mangapill">MangaPill (Fast)</option>
               <option value="mangahere">MangaHere (Classic)</option>
-              <option value="weebcentral">WeebCentral</option>
+              {/* UPDATED OPTION */}
+              <option value="weebcentral">WeebCentral (Quality)</option>
             </select>
           </div>
 
