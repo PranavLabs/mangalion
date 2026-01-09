@@ -8,7 +8,6 @@ export default function Home() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   
-  // Default provider
   const [provider, setProvider] = useState('mangapill');
 
   const fetchManga = async (q?: string) => {
@@ -31,7 +30,6 @@ export default function Home() {
             setMangaList([]);
         }
     } catch (e) { 
-        console.error("Failed to fetch manga:", e);
         setMangaList([]);
     }
     setLoading(false);
@@ -50,18 +48,14 @@ export default function Home() {
         <div className="flex flex-col md:flex-row gap-4 mb-8 max-w-4xl mx-auto items-center">
           <div className="w-full md:w-auto flex flex-col">
             <label className="text-xs text-gray-500 mb-1 ml-1 uppercase font-bold tracking-wider">Source</label>
-
-
-<select 
-  value={provider}
-  onChange={(e) => setProvider(e.target.value)}
-  className="p-4 bg-neutral-900 rounded-lg border border-neutral-800 text-blue-400 font-bold focus:outline-none focus:border-blue-600 cursor-pointer appearance-none min-w-[200px]"
->
-  <option value="mangapill">MangaPill (Fast)</option>
-  <option value="mangahere">MangaHere (Classic)</option>
-  {/* REPLACED WEEBCENTRAL */}
-  <option value="mangareader">MangaReader (Reliable)</option>
-</select>
+            <select 
+              value={provider}
+              onChange={(e) => setProvider(e.target.value)}
+              className="p-4 bg-neutral-900 rounded-lg border border-neutral-800 text-blue-400 font-bold focus:outline-none focus:border-blue-600 cursor-pointer appearance-none min-w-[200px]"
+            >
+              <option value="mangapill">MangaPill (Fast)</option>
+              <option value="mangahere">MangaHere (Classic)</option>
+            </select>
           </div>
 
           <div className="flex-1 w-full flex gap-2">
@@ -87,27 +81,36 @@ export default function Home() {
             <div className="text-xl font-bold text-gray-500">Loading {provider}...</div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-            {mangaList.map((m) => (
-              <Link 
-                href={`/manga/${m.id}?provider=${provider}`} 
-                key={m.id} 
-                className="group flex flex-col"
-              >
-                <div className="relative aspect-[2/3] overflow-hidden rounded-xl bg-neutral-900 mb-3 shadow-lg border border-neutral-800">
-                    <img 
-                        src={m.image ? `/api/proxy?url=${encodeURIComponent(m.image)}&source=${provider}` : '/placeholder.png'} 
-                        className="object-cover w-full h-full group-hover:scale-110 transition duration-500 ease-out opacity-90 group-hover:opacity-100"
-                        alt={m.title}
-                        loading="lazy"
-                    />
+          <>
+            {mangaList.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                    {mangaList.map((m) => (
+                    <Link 
+                        href={`/manga/${m.id}?provider=${provider}`} 
+                        key={m.id} 
+                        className="group flex flex-col"
+                    >
+                        <div className="relative aspect-[2/3] overflow-hidden rounded-xl bg-neutral-900 mb-3 shadow-lg border border-neutral-800">
+                            <img 
+                                src={m.image ? `/api/proxy?url=${encodeURIComponent(m.image)}&source=${provider}` : '/placeholder.png'} 
+                                className="object-cover w-full h-full group-hover:scale-110 transition duration-500 ease-out opacity-90 group-hover:opacity-100"
+                                alt={m.title}
+                                loading="lazy"
+                            />
+                        </div>
+                        <h3 className="text-sm font-bold text-gray-300 truncate group-hover:text-blue-400">
+                            {m.title}
+                        </h3>
+                    </Link>
+                    ))}
                 </div>
-                <h3 className="text-sm font-bold text-gray-300 truncate group-hover:text-blue-400">
-                    {m.title}
-                </h3>
-              </Link>
-            ))}
-          </div>
+            ) : (
+                <div className="text-center py-20">
+                    <h2 className="text-2xl font-bold text-gray-400">No results found</h2>
+                    <p className="text-gray-500 mt-2">Try a different search term.</p>
+                </div>
+            )}
+          </>
         )}
       </div>
     </div>
