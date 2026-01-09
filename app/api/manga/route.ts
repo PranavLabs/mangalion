@@ -5,7 +5,7 @@ import { MANGA } from '@consumet/extensions';
 const providers = {
   mangapill: new MANGA.MangaPill(),
   mangahere: new MANGA.MangaHere(),
-  asurascans: new MANGA.AsuraScans(),
+  asurascans: new MANGA.WeebCentral(),
 };
 
 export async function GET(request: Request) {
