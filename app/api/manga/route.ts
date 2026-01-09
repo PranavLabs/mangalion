@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { MANGA } from '@consumet/extensions';
-import puppeteerCore from 'puppeteer-core';
+import axios from 'axios';
 
 // Initialize 2 Providers
 const providers = {
@@ -8,9 +8,8 @@ const providers = {
   mangahere: new MANGA.MangaHere(),
 };
 
-// --- MANGAHERE SCRAPER WITH PUPPETEER ---
-async function fetchMangaHereImagesWithBrowser(chapterId: string) {
-  let browser;
+// --- IMPROVED MANGAHERE SCRAPER (No Puppeteer) ---
+async function fetchMangaHereImages(chapterId: string) {
   try {
     const baseUrl = 'https://www.mangahere.cc';
 
@@ -22,75 +21,83 @@ async function fetchMangaHereImagesWithBrowser(chapterId: string) {
       targetUrl = `${baseUrl}/manga/${cleanId}/1.html`;
     }
 
-    console.log('[MangaHere] Browser: Fetching with Puppeteer:', targetUrl);
+    console.log('[MangaHere] Fetching:', targetUrl);
 
-    // Use Chromium from Vercel or local puppeteer
-    const executablePath = process.env.CHROMIUM_PATH || undefined;
-    
-    browser = await puppeteerCore.launch({
-      headless: true,
-      executablePath,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-      ],
-    } as any);
-
-    const page = await browser.newPage();
-    
-    // Set timeout
-    page.setDefaultTimeout(30000);
-    page.setDefaultNavigationTimeout(30000);
-
-    await page.goto(targetUrl, { 
-      waitUntil: 'networkidle2', 
-      timeout: 30000,
+    const { data } = await axios.get(targetUrl, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://www.mangahere.cc/',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Cache-Control': 'no-cache',
+      },
+      timeout: 15000,
     });
 
-    // Wait for images to load
-    await page.waitForSelector('img[src*="jpg"],img[src*="png"],img[src*="webp"]', {
-      timeout: 10000,
-    }).catch(() => {
-      console.log('[MangaHere] Image selector timeout (images may still be there)');
-    });
+    console.log('[MangaHere] Got HTML, length:', data.length);
 
-    // Extract all image URLs from the page
-    const images = await page.evaluate(() => {
-      const imgs = document.querySelectorAll('img');
-      const urls: string[] = [];
-      
-      imgs.forEach((img) => {
-        const src = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-original');
-        if (src && (src.includes('jpg') || src.includes('png') || src.includes('webp') || src.includes('jpeg'))) {
-          // Filter out UI images
-          if (!src.includes('logo') && !src.includes('icon') && !src.includes('loading') && !src.includes('static.mangahere') && !src.includes('nopicture')) {
-            if (src.startsWith('http')) {
-              urls.push(src);
-            } else if (src.startsWith('//')) {
-              urls.push('https:' + src);
-            }
-          }
+    const images: string[] = [];
+
+    // Method 1: Extract from img src attributes (these are in the HTML)
+    // Look for: src="https://fmcdn.mangahere.com/..." or src="https://zjcdn.mangahere.org/..."
+    const imgSrcRegex = /src=["']([^"']*(?:fmcdn|zjcdn)[^"']*(?:jpg|png|webp|jpeg)[^"']*)["']/gi;
+    let match;
+    
+    while ((match = imgSrcRegex.exec(data)) !== null) {
+      let url = match[1];
+      if (!url.includes('loading') && !url.includes('nopicture')) {
+        if (url.startsWith('//')) {
+          url = 'https:' + url;
         }
-      });
-      
-      return urls;
-    });
-
-    await browser.close();
+        if (!images.includes(url)) {
+          images.push(url);
+        }
+      }
+    }
 
     if (images.length > 0) {
-      console.log('[MangaHere] Browser: Found', images.length, 'images');
+      console.log('[MangaHere] Found', images.length, 'images from src');
       return images.map((img) => ({ img }));
     }
 
-    console.log('[MangaHere] Browser: No images found');
+    // Method 2: Extract from data-src (lazy loading)
+    const dataSrcRegex = /data-src=["']([^"']*(?:fmcdn|zjcdn)[^"']*(?:jpg|png|webp|jpeg)[^"']*)["']/gi;
+    while ((match = dataSrcRegex.exec(data)) !== null) {
+      let url = match[1];
+      if (!url.includes('loading')) {
+        if (url.startsWith('//')) {
+          url = 'https:' + url;
+        }
+        if (!images.includes(url)) {
+          images.push(url);
+        }
+      }
+    }
+
+    if (images.length > 0) {
+      console.log('[MangaHere] Found', images.length, 'images from data-src');
+      return images.map((img) => ({ img }));
+    }
+
+    // Method 3: Extract from data-original (another lazy loading variant)
+    const dataOriginalRegex = /data-original=["']([^"']*(?:fmcdn|zjcdn)[^"']*(?:jpg|png|webp|jpeg)[^"']*)["']/gi;
+    while ((match = dataOriginalRegex.exec(data)) !== null) {
+      let url = match[1];
+      if (!images.includes(url)) {
+        images.push(url);
+      }
+    }
+
+    if (images.length > 0) {
+      console.log('[MangaHere] Found', images.length, 'images from data-original');
+      return images.map((img) => ({ img }));
+    }
+
+    console.log('[MangaHere] No images found');
     return [];
   } catch (e: any) {
-    console.error('[MangaHere] Browser Error:', e.message);
-    if (browser) {
-      await browser.close().catch(() => {});
-    }
+    console.error('[MangaHere] Error:', e.response?.status || e.code, e.message);
     return [];
   }
 }
@@ -115,16 +122,16 @@ export async function GET(request: Request) {
         const pages = await provider.fetchChapterPages(id);
 
         if ((!pages || pages.length === 0) && providerName === 'mangahere') {
-          console.log('[API] Consumet empty, using Puppeteer for:', id);
-          const manualPages = await fetchMangaHereImagesWithBrowser(id);
+          console.log('[API] Consumet empty, trying manual scraper');
+          const manualPages = await fetchMangaHereImages(id);
           return NextResponse.json(manualPages);
         }
 
         return NextResponse.json(pages);
       } catch (e) {
         if (providerName === 'mangahere') {
-          console.log('[API] Consumet error, using Puppeteer for:', id);
-          const manualPages = await fetchMangaHereImagesWithBrowser(id);
+          console.log('[API] Consumet error, trying manual scraper');
+          const manualPages = await fetchMangaHereImages(id);
           return NextResponse.json(manualPages);
         }
         return NextResponse.json([]);
