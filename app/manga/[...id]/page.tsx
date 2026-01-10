@@ -58,33 +58,21 @@ export default function MangaDetails() {
     );
   }
 
-  // Helper for background image
   const bgImage = data.image ? `/api/proxy?url=${encodeURIComponent(data.image)}&source=${provider}` : '';
   const chapters = Array.isArray(data.chapters) ? data.chapters : [];
 
   return (
     <div className="min-h-screen relative bg-[#050505] text-white overflow-hidden selection:bg-pink-500 selection:text-white">
-      
-      {/* 1. FULLSCREEN BLURRED BACKGROUND */}
-      {/* We use the manga cover, scale it up, and blur it heavily to create the atmosphere */}
       <div 
         className="absolute inset-0 bg-cover bg-center opacity-30 blur-[80px] scale-110 pointer-events-none transition-all duration-1000"
         style={{ backgroundImage: `url('${bgImage}')` }} 
       />
-      
-      {/* Dark overlay to ensure text readability */}
       <div className="absolute inset-0 bg-black/50 pointer-events-none" />
 
-      {/* 2. MAIN CONTENT CONTAINER */}
       <div className="relative z-10 max-w-6xl mx-auto p-4 md:p-10 min-h-screen flex flex-col justify-center">
-        
-        {/* 3. GLASS PANEL (The "Sheet") */}
         <div className="bg-black/40 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] p-8 md:p-12 shadow-2xl relative overflow-hidden">
-            
-            {/* Top Shine Effect */}
             <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
 
-            {/* Close Button */}
             <Link 
                 href="/" 
                 className="absolute top-8 right-8 w-10 h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 border border-white/5 transition-all text-white/50 hover:text-white"
@@ -93,7 +81,6 @@ export default function MangaDetails() {
             </Link>
 
             <div className="flex flex-col md:flex-row gap-10">
-                {/* COVER ART */}
                 <div className="w-full md:w-80 shrink-0 perspective-1000">
                     <img 
                         src={bgImage} 
@@ -102,7 +89,6 @@ export default function MangaDetails() {
                     />
                 </div>
 
-                {/* INFO TEXT */}
                 <div className="flex-1">
                     <h1 className="text-4xl md:text-6xl font-black mb-6 leading-tight text-transparent bg-clip-text bg-gradient-to-br from-white via-white/90 to-white/50 drop-shadow-lg">
                         {data.title}
@@ -123,7 +109,6 @@ export default function MangaDetails() {
                 </div>
             </div>
 
-            {/* CHAPTERS SECTION */}
             <div className="mt-12 pt-8 border-t border-white/10">
                 <div className="flex items-center gap-3 mb-6">
                     <div className="w-1.5 h-8 bg-pink-500 rounded-full shadow-[0_0_15px_rgba(236,72,153,0.5)]" />
@@ -136,7 +121,8 @@ export default function MangaDetails() {
                     {chapters.map((c: any) => (
                         <Link 
                             key={c.id} 
-                            href={`/read/${c.id}?provider=${provider}`} 
+                            // FIX: We append &mangaId={id} so the reader knows where to go back to
+                            href={`/read/${c.id}?provider=${provider}&mangaId=${id}`} 
                             className="group relative px-4 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-pink-500/30 transition-all duration-300 text-sm font-medium text-white/70 hover:text-white truncate text-center backdrop-blur-md overflow-hidden"
                         >
                             <div className="absolute inset-0 bg-pink-500/0 group-hover:bg-pink-500/5 transition-colors duration-300" />
