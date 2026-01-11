@@ -102,7 +102,7 @@ export default function Home() {
           <div className="max-w-7xl mx-auto flex items-center justify-between">
               <div className="flex items-center gap-3 group cursor-default">
                   <div className="relative h-10 w-10 rounded-xl overflow-hidden shadow-[0_0_20px_rgba(236,72,153,0.5)] border border-white/10 group-hover:scale-105 transition-transform">
-                      <Image src="/icon.png" alt="KOMIK Logo" fill className="object-cover z-10" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement?.classList.add('bg-gradient-to-br', 'from-pink-500', 'to-blue-500'); }} />
+                      <Image src="/logo.png" alt="KOMIK Logo" fill className="object-cover z-10" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement?.classList.add('bg-gradient-to-br', 'from-pink-500', 'to-blue-500'); }} />
                       <div className="absolute inset-0 bg-gradient-to-br from-pink-500/20 to-blue-500/20 z-0"></div>
                   </div>
                   <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 tracking-tight drop-shadow-sm">KOMIK</span>
