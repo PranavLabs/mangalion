@@ -14,11 +14,12 @@ export default function Reader() {
   const [pages, setPages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Navigation & Title State
-  const [chapterList, setChapterList] = useState<any[]>([]);
+  // Navigation
   const [nextChapter, setNextChapter] = useState<string | null>(null);
   const [prevChapter, setPrevChapter] = useState<string | null>(null);
-  const [currentTitle, setCurrentTitle] = useState<string>(''); // NEW: Holds chapter title
+  const [currentTitle, setCurrentTitle] = useState<string>('');
+
+  const providerLabel = provider === 'mangapill' ? 'KOMIK (Main)' : 'KOMIK (Server 2)';
 
   // 1. Fetch Images
   useEffect(() => {
@@ -35,7 +36,7 @@ export default function Reader() {
       .catch(e => setLoading(false));
   }, [chapterId, provider]);
 
-  // 2. Fetch Chapter List (For Navigation & Title)
+  // 2. Fetch Info for Nav & Title & SEO
   useEffect(() => {
     if(!mangaId) return;
     
@@ -43,9 +44,6 @@ export default function Reader() {
         .then(r => r.json())
         .then(data => {
             if(data.chapters && Array.isArray(data.chapters)) {
-                setChapterList(data.chapters);
-                
-                // Find current chapter object
                 const currentIndex = data.chapters.findIndex((c: any) => c.id === chapterId);
                 
                 if (currentIndex !== -1) {
@@ -53,12 +51,14 @@ export default function Reader() {
                     const nextCh = data.chapters[currentIndex - 1]; 
                     const prevCh = data.chapters[currentIndex + 1]; 
                     
-                    // Set Navigation
                     if (nextCh) setNextChapter(nextCh.id);
                     if (prevCh) setPrevChapter(prevCh.id);
-
-                    // Set Title (Prefer 'Chapter X' format if title is missing)
-                    setCurrentTitle(currentCh.title || `Chapter ${currentCh.chapterNumber}`);
+                    
+                    const title = currentCh.title || `Chapter ${currentCh.chapterNumber}`;
+                    setCurrentTitle(title);
+                    
+                    // SEO: Update Tab Title
+                    document.title = `${title} - ${data.title} | KOMIK`;
                 }
             }
         })
@@ -68,8 +68,8 @@ export default function Reader() {
   return (
     <div className="bg-[#050505] min-h-screen flex flex-col items-center selection:bg-pink-500 selection:text-white pb-32">
        
-       {/* FLOATING GLASS HEADER */}
-       <div className="fixed top-6 z-50 animate-in fade-in slide-in-from-top-4 duration-700 max-w-[90vw]">
+       {/* FLOATING HEADER */}
+       <div className="fixed top-6 z-50 animate-in fade-in slide-in-from-top-4 duration-700 max-w-[95vw]">
             <div className="flex items-center gap-4 md:gap-6 px-5 py-3 bg-black/60 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl transition-all hover:bg-black/80 hover:border-white/20">
                 
                 {/* 1. EXIT BUTTON */}
@@ -83,32 +83,31 @@ export default function Reader() {
 
                 <div className="w-px h-4 bg-white/10 shrink-0" />
 
-                {/* 2. CURRENT CHAPTER TITLE (NEW) */}
+                {/* 2. TITLE */}
                 <div className="flex flex-col items-center justify-center min-w-[100px] md:min-w-[150px]">
                     <span className="text-[10px] text-pink-500 font-bold uppercase tracking-widest leading-none mb-0.5">
-                        {provider}
+                        {providerLabel}
                     </span>
                     <span className="text-white font-medium text-xs md:text-sm truncate max-w-[150px] md:max-w-[250px]">
-                        {currentTitle || 'Loading Chapter...'}
+                        {currentTitle || 'Loading...'}
                     </span>
                 </div>
 
                 <div className="w-px h-4 bg-white/10 shrink-0" />
 
-                {/* 3. PAGE COUNT */}
+                {/* 3. PAGES */}
                 <div className="text-white/40 text-xs font-mono uppercase tracking-widest shrink-0">
                     {loading ? '...' : `${pages.length} PGS`}
                 </div>
             </div>
        </div>
 
-      {/* READER CANVAS */}
+      {/* CANVAS */}
       <div className="w-full max-w-4xl flex flex-col items-center pt-0 min-h-screen">
-        
         {loading && (
             <div className="flex flex-col items-center justify-center mt-40 gap-4">
                  <div className="w-10 h-10 border-2 border-pink-500 border-t-transparent rounded-full animate-spin" />
-                 <div className="text-pink-500 animate-pulse tracking-[0.2em] font-light text-sm">DECODING VISUALS...</div>
+                 <div className="text-pink-500 animate-pulse tracking-[0.2em] font-light text-sm">DECODING KOMIK...</div>
             </div>
         )}
         
@@ -129,16 +128,15 @@ export default function Reader() {
         {!loading && pages.length === 0 && (
            <div className="mt-40 p-8 border border-white/10 rounded-3xl bg-white/5 backdrop-blur-md text-center max-w-md">
                <div className="text-4xl mb-4">Void</div>
-               <div className="text-red-400 font-light">No images found in this sector.</div>
-               <div className="text-white/30 text-xs mt-2">Try switching providers on the home screen.</div>
+               <div className="text-red-400 font-light">No images found.</div>
+               <div className="text-white/30 text-xs mt-2">Try switching Server.</div>
            </div>
         )}
 
-        {/* NAVIGATION BUTTONS */}
+        {/* NAV BUTTONS */}
         {!loading && pages.length > 0 && (
             <div className="w-full max-w-lg mt-12 mb-20 px-4">
                 <div className="flex gap-4 items-center justify-center">
-                    {/* PREVIOUS BUTTON */}
                     {prevChapter ? (
                         <Link 
                             href={`/read/${prevChapter}?provider=${provider}&mangaId=${mangaId}`}
@@ -147,12 +145,9 @@ export default function Reader() {
                             ← Previous
                         </Link>
                     ) : (
-                        <div className="flex-1 py-4 border border-white/5 rounded-2xl text-center text-white/20 cursor-not-allowed">
-                            Start
-                        </div>
+                        <div className="flex-1 py-4 border border-white/5 rounded-2xl text-center text-white/20 cursor-not-allowed">Start</div>
                     )}
 
-                    {/* NEXT BUTTON */}
                     {nextChapter ? (
                         <Link 
                             href={`/read/${nextChapter}?provider=${provider}&mangaId=${mangaId}`}
@@ -161,9 +156,7 @@ export default function Reader() {
                             Next →
                         </Link>
                     ) : (
-                        <div className="flex-1 py-4 border border-white/5 rounded-2xl text-center text-white/20 cursor-not-allowed">
-                            Latest
-                        </div>
+                        <div className="flex-1 py-4 border border-white/5 rounded-2xl text-center text-white/20 cursor-not-allowed">Latest</div>
                     )}
                 </div>
             </div>
