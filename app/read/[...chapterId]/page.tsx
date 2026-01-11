@@ -3,15 +3,22 @@ import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
+const CODE_TO_PROVIDER: Record<string, string> = {
+    '8841': 'mangapill',
+    '9983': 'mangahere',
+};
+
 export default function Reader() {
   const params = useParams();
   const searchParams = useSearchParams();
   
-  const provider = searchParams.get('provider') || 'mangapill';
+  // PARSE URL: /read/8841/chapter-id
+  const urlParams = Array.isArray(params.chapterId) ? params.chapterId : [params.chapterId];
+  const code = urlParams[0] || '8841'; 
+  const chapterId = urlParams.slice(1).join('/');
+
+  const provider = CODE_TO_PROVIDER[code] || 'mangapill';
   const mangaId = searchParams.get('mangaId'); 
-  // FIX: Capture cover
-  const coverParam = searchParams.get('cover');
-  const chapterId = Array.isArray(params.chapterId) ? params.chapterId.join('/') : params.chapterId;
   
   const [pages, setPages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -19,10 +26,17 @@ export default function Reader() {
   const [nextChapter, setNextChapter] = useState<string | null>(null);
   const [prevChapter, setPrevChapter] = useState<string | null>(null);
   const [currentTitle, setCurrentTitle] = useState<string>('');
+  const [storedCover, setStoredCover] = useState<string>('');
 
   const providerLabel = provider === 'mangapill' ? 'KOMIK (Main)' : 'KOMIK (Server 2)';
 
-  // 1. Fetch Images
+  useEffect(() => {
+    if (typeof window !== 'undefined' && mangaId) {
+        const c = sessionStorage.getItem(`komik_cover_${mangaId}`);
+        if (c) setStoredCover(c);
+    }
+  }, [mangaId]);
+
   useEffect(() => {
     if(!chapterId) return;
     setLoading(true);
@@ -37,7 +51,6 @@ export default function Reader() {
       .catch(e => setLoading(false));
   }, [chapterId, provider]);
 
-  // 2. Fetch Info for Nav & History
   useEffect(() => {
     if(!mangaId) return;
     
@@ -57,33 +70,28 @@ export default function Reader() {
                     
                     const title = currentCh.title || `Chapter ${currentCh.chapterNumber}`;
                     setCurrentTitle(title);
-                    
                     document.title = `${title} - ${data.title} | KOMIK`;
 
-                    // --- SAVE HISTORY ---
                     try {
                         const historyItem = {
                             id: mangaId,
                             title: data.title,
-                            // FIX: Use the passed cover URL first, then fallback to API image
-                            image: coverParam || data.image,
-                            provider: provider,
+                            image: storedCover || data.image,
+                            provider: provider, 
                             chapterId: chapterId,
                             chapterTitle: title,
                             timestamp: Date.now(),
                         };
-
                         const existingHistory = JSON.parse(localStorage.getItem('komik_history') || '[]');
                         const filtered = existingHistory.filter((h: any) => h.id !== mangaId);
                         const newHistory = [historyItem, ...filtered].slice(0, 10);
-                        
                         localStorage.setItem('komik_history', JSON.stringify(newHistory));
                     } catch (e) { console.error("History save failed"); }
                 }
             }
         })
         .catch(e => console.error("Nav fetch failed", e));
-  }, [mangaId, chapterId, provider, coverParam]); // Added coverParam to dependency
+  }, [mangaId, chapterId, provider, storedCover]);
 
   return (
     <div className="bg-[#050505] min-h-screen flex flex-col items-center selection:bg-pink-500 selection:text-white pb-32">
@@ -91,8 +99,8 @@ export default function Reader() {
        <div className="fixed top-6 z-50 animate-in fade-in slide-in-from-top-4 duration-700 max-w-[95vw]">
             <div className="flex items-center gap-4 md:gap-6 px-5 py-3 bg-black/60 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl transition-all hover:bg-black/80 hover:border-white/20">
                 <Link 
-                    // FIX: Pass cover back to details
-                    href={mangaId ? `/manga/${mangaId}?provider=${provider}&cover=${encodeURIComponent(coverParam || '')}` : '/'} 
+                    // EXIT back to /manga/8841/id
+                    href={mangaId ? `/manga/${code}/${mangaId}` : '/'} 
                     className="flex items-center gap-2 text-white/60 hover:text-white font-bold transition-colors text-sm tracking-wide shrink-0"
                 >
                     <span className="text-lg">←</span> <span className="hidden md:inline">EXIT</span>
@@ -126,8 +134,8 @@ export default function Reader() {
                 <div className="flex gap-4 items-center justify-center">
                     {prevChapter ? (
                         <Link 
-                            // FIX: Pass cover to next/prev
-                            href={`/read/${prevChapter}?provider=${provider}&mangaId=${mangaId}&cover=${encodeURIComponent(coverParam || '')}`} 
+                            // NAVIGATE to /read/8841/prev-chapter
+                            href={`/read/${code}/${prevChapter}?mangaId=${mangaId}`} 
                             className="flex-1 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-center text-white/70 hover:text-white font-bold transition-all hover:-translate-y-1"
                         >
                             ← Previous
@@ -136,8 +144,8 @@ export default function Reader() {
 
                     {nextChapter ? (
                         <Link 
-                            // FIX: Pass cover to next/prev
-                            href={`/read/${nextChapter}?provider=${provider}&mangaId=${mangaId}&cover=${encodeURIComponent(coverParam || '')}`} 
+                             // NAVIGATE to /read/8841/next-chapter
+                            href={`/read/${code}/${nextChapter}?mangaId=${mangaId}`} 
                             className="flex-1 py-4 bg-pink-600/20 hover:bg-pink-600/40 border border-pink-500/30 hover:border-pink-500/60 rounded-2xl text-center text-pink-200 hover:text-white font-bold transition-all hover:-translate-y-1 shadow-[0_0_20px_rgba(236,72,153,0.1)]"
                         >
                             Next →
