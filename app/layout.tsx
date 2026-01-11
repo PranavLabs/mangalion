@@ -16,6 +16,11 @@ export const metadata: Metadata = {
     'Asura Scans', 'Flame Scans', 'Reaper Scans', 'Webtoons', 'Manhwa', 'Manhua', 
     'KOMIK', 'Solo Leveling', 'One Piece', 'Jujutsu Kaisen'
   ],
+  icons: {
+    icon: '/logo.png',        // Place icon.png in your public folder
+    shortcut: '/logo.png',
+    apple: '/logo.png',      // Used when adding to iPhone Home Screen
+  },
   openGraph: {
     title: 'KOMIK - The Ultimate Manga Reader',
     description: 'Read Manga, Manhwa, and Webtoons for free with no interruptions.',
