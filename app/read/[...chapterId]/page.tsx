@@ -9,12 +9,13 @@ export default function Reader() {
   
   const provider = searchParams.get('provider') || 'mangapill';
   const mangaId = searchParams.get('mangaId'); 
+  // FIX: Capture cover
+  const coverParam = searchParams.get('cover');
   const chapterId = Array.isArray(params.chapterId) ? params.chapterId.join('/') : params.chapterId;
   
   const [pages, setPages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Navigation
   const [nextChapter, setNextChapter] = useState<string | null>(null);
   const [prevChapter, setPrevChapter] = useState<string | null>(null);
   const [currentTitle, setCurrentTitle] = useState<string>('');
@@ -36,7 +37,7 @@ export default function Reader() {
       .catch(e => setLoading(false));
   }, [chapterId, provider]);
 
-  // 2. Fetch Info for Nav & Title & SAVE HISTORY
+  // 2. Fetch Info for Nav & History
   useEffect(() => {
     if(!mangaId) return;
     
@@ -59,12 +60,13 @@ export default function Reader() {
                     
                     document.title = `${title} - ${data.title} | KOMIK`;
 
-                    // --- SAVE HISTORY LOGIC ---
+                    // --- SAVE HISTORY ---
                     try {
                         const historyItem = {
                             id: mangaId,
                             title: data.title,
-                            image: data.image,
+                            // FIX: Use the passed cover URL first, then fallback to API image
+                            image: coverParam || data.image,
                             provider: provider,
                             chapterId: chapterId,
                             chapterTitle: title,
@@ -72,32 +74,29 @@ export default function Reader() {
                         };
 
                         const existingHistory = JSON.parse(localStorage.getItem('komik_history') || '[]');
-                        // Remove duplicates of this manga
                         const filtered = existingHistory.filter((h: any) => h.id !== mangaId);
-                        // Add new entry to the top
-                        const newHistory = [historyItem, ...filtered].slice(0, 10); // Keep last 10
+                        const newHistory = [historyItem, ...filtered].slice(0, 10);
                         
                         localStorage.setItem('komik_history', JSON.stringify(newHistory));
-                    } catch (e) {
-                        console.error("Failed to save history");
-                    }
-                    // --------------------------
+                    } catch (e) { console.error("History save failed"); }
                 }
             }
         })
         .catch(e => console.error("Nav fetch failed", e));
-  }, [mangaId, chapterId, provider]);
+  }, [mangaId, chapterId, provider, coverParam]); // Added coverParam to dependency
 
-  // ... (Rest of the JSX remains exactly the same)
-  // Just copy the return statement from the previous correct version I gave you.
-  // I will not repeat the huge JSX block here to save space, 
-  // but ensure you keep the JSX from the previous step.
   return (
     <div className="bg-[#050505] min-h-screen flex flex-col items-center selection:bg-pink-500 selection:text-white pb-32">
-       {/* Use the exact same JSX as before */}
+       
        <div className="fixed top-6 z-50 animate-in fade-in slide-in-from-top-4 duration-700 max-w-[95vw]">
             <div className="flex items-center gap-4 md:gap-6 px-5 py-3 bg-black/60 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl transition-all hover:bg-black/80 hover:border-white/20">
-                <Link href={mangaId ? `/manga/${mangaId}?provider=${provider}` : '/'} className="flex items-center gap-2 text-white/60 hover:text-white font-bold transition-colors text-sm tracking-wide shrink-0"><span className="text-lg">←</span> <span className="hidden md:inline">EXIT</span></Link>
+                <Link 
+                    // FIX: Pass cover back to details
+                    href={mangaId ? `/manga/${mangaId}?provider=${provider}&cover=${encodeURIComponent(coverParam || '')}` : '/'} 
+                    className="flex items-center gap-2 text-white/60 hover:text-white font-bold transition-colors text-sm tracking-wide shrink-0"
+                >
+                    <span className="text-lg">←</span> <span className="hidden md:inline">EXIT</span>
+                </Link>
                 <div className="w-px h-4 bg-white/10 shrink-0" />
                 <div className="flex flex-col items-center justify-center min-w-[100px] md:min-w-[150px]">
                     <span className="text-[10px] text-pink-500 font-bold uppercase tracking-widest leading-none mb-0.5">{providerLabel}</span>
@@ -125,8 +124,25 @@ export default function Reader() {
         {!loading && pages.length > 0 && (
             <div className="w-full max-w-lg mt-12 mb-20 px-4">
                 <div className="flex gap-4 items-center justify-center">
-                    {prevChapter ? <Link href={`/read/${prevChapter}?provider=${provider}&mangaId=${mangaId}`} className="flex-1 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-center text-white/70 hover:text-white font-bold transition-all hover:-translate-y-1">← Previous</Link> : <div className="flex-1 py-4 border border-white/5 rounded-2xl text-center text-white/20 cursor-not-allowed">Start</div>}
-                    {nextChapter ? <Link href={`/read/${nextChapter}?provider=${provider}&mangaId=${mangaId}`} className="flex-1 py-4 bg-pink-600/20 hover:bg-pink-600/40 border border-pink-500/30 hover:border-pink-500/60 rounded-2xl text-center text-pink-200 hover:text-white font-bold transition-all hover:-translate-y-1 shadow-[0_0_20px_rgba(236,72,153,0.1)]">Next →</Link> : <div className="flex-1 py-4 border border-white/5 rounded-2xl text-center text-white/20 cursor-not-allowed">Latest</div>}
+                    {prevChapter ? (
+                        <Link 
+                            // FIX: Pass cover to next/prev
+                            href={`/read/${prevChapter}?provider=${provider}&mangaId=${mangaId}&cover=${encodeURIComponent(coverParam || '')}`} 
+                            className="flex-1 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-center text-white/70 hover:text-white font-bold transition-all hover:-translate-y-1"
+                        >
+                            ← Previous
+                        </Link>
+                    ) : <div className="flex-1 py-4 border border-white/5 rounded-2xl text-center text-white/20 cursor-not-allowed">Start</div>}
+
+                    {nextChapter ? (
+                        <Link 
+                            // FIX: Pass cover to next/prev
+                            href={`/read/${nextChapter}?provider=${provider}&mangaId=${mangaId}&cover=${encodeURIComponent(coverParam || '')}`} 
+                            className="flex-1 py-4 bg-pink-600/20 hover:bg-pink-600/40 border border-pink-500/30 hover:border-pink-500/60 rounded-2xl text-center text-pink-200 hover:text-white font-bold transition-all hover:-translate-y-1 shadow-[0_0_20px_rgba(236,72,153,0.1)]"
+                        >
+                            Next →
+                        </Link>
+                    ) : <div className="flex-1 py-4 border border-white/5 rounded-2xl text-center text-white/20 cursor-not-allowed">Latest</div>}
                 </div>
             </div>
         )}
