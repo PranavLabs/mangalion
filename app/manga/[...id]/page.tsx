@@ -1,27 +1,42 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
+
+// REVERSE MAP for decoding
+const CODE_TO_PROVIDER: Record<string, string> = {
+    '8841': 'mangapill',
+    '9983': 'mangahere',
+};
 
 export default function MangaDetails() {
   const params = useParams();
-  const searchParams = useSearchParams();
   
-  const provider = searchParams.get('provider') || 'mangapill';
-  // 1. CAPTURE THE COVER FROM HOME PAGE
-  const coverParam = searchParams.get('cover');
+  // PARSE URL: /manga/8841/12345
+  const urlParams = Array.isArray(params.id) ? params.id : [params.id];
+  const code = urlParams[0] || '8841'; 
+  const id = urlParams.slice(1).join('/'); 
+  
+  // Convert Code -> Provider Name for API calls
+  const provider = CODE_TO_PROVIDER[code] || 'mangapill';
 
-  const id = Array.isArray(params.id) ? params.id.join('/') : params.id;
-  
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [storedCover, setStoredCover] = useState<string>('');
 
   useEffect(() => {
+    // 1. Recover working cover from storage
+    if (typeof window !== 'undefined' && id) {
+        const cached = sessionStorage.getItem(`komik_cover_${id}`);
+        if (cached) setStoredCover(cached);
+    }
+
     if(!id) return;
     setLoading(true);
     setError('');
     
+    // Fetch using REAL provider name
     fetch(`/api/manga?type=info&id=${encodeURIComponent(id)}&provider=${provider}`)
       .then(r => r.json())
       .then(fetchedData => {
@@ -38,6 +53,10 @@ export default function MangaDetails() {
         setLoading(false);
       });
   }, [id, provider]);
+
+  const setChapterContext = () => {
+      if (typeof window !== 'undefined') localStorage.setItem('komik_manga_id', id);
+  };
 
   if (loading) return (
     <div className="min-h-screen bg-[#050505] flex items-center justify-center">
@@ -57,9 +76,8 @@ export default function MangaDetails() {
     );
   }
 
-  // 2. PRIORITIZE THE URL COVER (It works better than the fresh API one)
-  const bgImage = coverParam 
-    ? `/api/proxy?url=${encodeURIComponent(coverParam)}&source=${provider}` 
+  const bgImage = storedCover 
+    ? `/api/proxy?url=${encodeURIComponent(storedCover)}&source=${provider}` 
     : (data.image ? `/api/proxy?url=${encodeURIComponent(data.image)}&source=${provider}` : '');
     
   const chapters = Array.isArray(data.chapters) ? data.chapters : [];
@@ -67,7 +85,6 @@ export default function MangaDetails() {
 
   return (
     <div className="min-h-screen relative bg-[#050505] text-white overflow-hidden selection:bg-pink-500 selection:text-white">
-      {/* Background Blur */}
       <div className="absolute inset-0 bg-cover bg-center opacity-30 blur-[80px] scale-110 pointer-events-none transition-all duration-1000" style={{ backgroundImage: `url('${bgImage}')` }} />
       <div className="absolute inset-0 bg-black/50 pointer-events-none" />
 
@@ -108,8 +125,9 @@ export default function MangaDetails() {
                     {chapters.map((c: any) => (
                         <Link 
                             key={c.id} 
-                            // 3. PASS THE COVER TO THE READER
-                            href={`/read/${c.id}?provider=${provider}&mangaId=${id}&cover=${encodeURIComponent(coverParam || data.image || '')}`} 
+                            // RESULT: /read/8841/chapter-id
+                            href={`/read/${code}/${c.id}?mangaId=${id}`} 
+                            onClick={setChapterContext}
                             className="group relative px-4 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-pink-500/30 transition-all duration-300 text-sm font-medium text-white/70 hover:text-white truncate text-center backdrop-blur-md overflow-hidden"
                         >
                             <div className="absolute inset-0 bg-pink-500/0 group-hover:bg-pink-500/5 transition-colors duration-300" />
