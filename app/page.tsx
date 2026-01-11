@@ -4,6 +4,12 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 
+// --- CONFIGURATION ---
+const PROVIDER_CODES: Record<string, string> = {
+    'mangapill': '8841',
+    'mangahere': '9983',
+};
+
 export default function Home() {
   const [popular, setPopular] = useState<any[]>([]);
   const [ongoing, setOngoing] = useState<any[]>([]);
@@ -22,16 +28,11 @@ export default function Home() {
             fetch(`/api/manga?type=popular&provider=${provider}`),
             fetch(`/api/manga?type=latest&provider=${provider}`)
         ]);
-
         const popData = await popRes.json();
         const latestData = await latestRes.json();
-
-        setPopular(Array.isArray(popData.results) ? popData.results : (Array.isArray(popData) ? popData : []));
-        setOngoing(Array.isArray(latestData.results) ? latestData.results : (Array.isArray(latestData) ? latestData : []));
-        
-    } catch (e) {
-        console.error("Home fetch failed", e);
-    }
+        setPopular(Array.isArray(popData.results) ? popData.results : []);
+        setOngoing(Array.isArray(latestData.results) ? latestData.results : []);
+    } catch (e) { console.error(e); }
     setLoading(false);
   }, [provider]);
 
@@ -41,7 +42,7 @@ export default function Home() {
       try {
         const res = await fetch(`/api/manga?provider=${provider}&q=${encodeURIComponent(q)}`);
         const data = await res.json();
-        setSearchResults(Array.isArray(data.results) ? data.results : (Array.isArray(data) ? data : []));
+        setSearchResults(Array.isArray(data.results) ? data.results : []);
       } catch (e) { setSearchResults([]); }
       setSearching(false);
   }, [provider]);
@@ -61,29 +62,40 @@ export default function Home() {
     return () => clearTimeout(delayDebounceFn);
   }, [search, executeSearch]);
 
-  const MangaCard = ({ m }: { m: any }) => (
-    <Link 
-        // FIX: Pass the working image URL as a 'cover' parameter
-        href={`/manga/${m.id}?provider=${provider}&cover=${encodeURIComponent(m.image || '')}`} 
-        className="group relative"
-    >
-        <div className="aspect-[2/3] rounded-3xl overflow-hidden bg-white/5 border border-white/10 shadow-2xl relative transition-all duration-500 group-hover:-translate-y-2 group-hover:shadow-pink-500/20 group-hover:border-pink-500/30">
-            {m.image ? (
-                <img src={`/api/proxy?url=${encodeURIComponent(m.image)}&source=${provider}`} className="object-cover w-full h-full opacity-80 group-hover:opacity-100 transition-opacity duration-500" alt={m.title} loading="lazy" />
-            ) : (
-                <div className="w-full h-full bg-gradient-to-br from-purple-900/40 to-blue-900/40 flex items-center justify-center p-4"><span className="text-white/20 text-xs font-bold uppercase tracking-widest text-center">No Cover</span></div>
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-white/10 opacity-60 group-hover:opacity-40 transition-opacity" />
-            <div className="absolute bottom-0 left-0 right-0 p-4">
-                <h3 className="text-white font-bold truncate text-shadow-sm drop-shadow-md">{m.title}</h3>
-                <div className="flex items-center gap-2 mt-2">
-                    <span className="w-2 h-2 rounded-full bg-pink-500 animate-pulse" />
-                    <p className="text-xs text-pink-200/80 uppercase tracking-wider font-semibold">KOMIK</p>
+  // Save cover to storage (The "Image Thingy" fix)
+  const saveCoverToStorage = (id: string, image: string) => {
+      if (typeof window !== 'undefined') sessionStorage.setItem(`komik_cover_${id}`, image);
+  };
+
+  const MangaCard = ({ m }: { m: any }) => {
+      // Convert real provider name to code
+      const code = PROVIDER_CODES[provider] || '8841'; 
+      
+      return (
+        <Link 
+            // URL RESULT: /manga/8841/12345 (Hidden Provider)
+            href={`/manga/${code}/${m.id}`} 
+            onClick={() => saveCoverToStorage(m.id, m.image)}
+            className="group relative"
+        >
+            <div className="aspect-[2/3] rounded-3xl overflow-hidden bg-white/5 border border-white/10 shadow-2xl relative transition-all duration-500 group-hover:-translate-y-2 group-hover:shadow-pink-500/20 group-hover:border-pink-500/30">
+                {m.image ? (
+                    <img src={`/api/proxy?url=${encodeURIComponent(m.image)}&source=${provider}`} className="object-cover w-full h-full opacity-80 group-hover:opacity-100 transition-opacity duration-500" alt={m.title} loading="lazy" />
+                ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-purple-900/40 to-blue-900/40 flex items-center justify-center p-4"><span className="text-white/20 text-xs font-bold uppercase tracking-widest text-center">No Cover</span></div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-white/10 opacity-60 group-hover:opacity-40 transition-opacity" />
+                <div className="absolute bottom-0 left-0 right-0 p-4">
+                    <h3 className="text-white font-bold truncate text-shadow-sm drop-shadow-md">{m.title}</h3>
+                    <div className="flex items-center gap-2 mt-2">
+                        <span className="w-2 h-2 rounded-full bg-pink-500 animate-pulse" />
+                        <p className="text-xs text-pink-200/80 uppercase tracking-wider font-semibold">KOMIK</p>
+                    </div>
                 </div>
             </div>
-        </div>
-    </Link>
-  );
+        </Link>
+      );
+  };
 
   return (
     <div className="min-h-screen bg-[#0f0f11] text-white selection:bg-pink-500 selection:text-white overflow-x-hidden relative bg-[url('/noise.png')]">
@@ -147,43 +159,46 @@ export default function Home() {
                                     <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-500 uppercase tracking-wide">Continue Reading</h2>
                                 </div>
                                 <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar snap-x">
-                                    {history.map((h, i) => (
-                                        <Link 
-                                            key={i} 
-                                            // FIX: Pass the cover image back to the reader so it stays in history
-                                            href={`/read/${h.chapterId}?provider=${h.provider}&mangaId=${h.id}&cover=${encodeURIComponent(h.image || '')}`} 
-                                            className="snap-start shrink-0 w-64 group relative rounded-3xl overflow-hidden border border-white/10 bg-white/5"
-                                        >
-                                            <div className="relative h-32 overflow-hidden">
-                                                {h.image && <img src={`/api/proxy?url=${encodeURIComponent(h.image)}&source=${h.provider}`} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" alt={h.title} />}
-                                                <div className="absolute inset-0 bg-gradient-to-t from-[#0f0f11] to-transparent" />
-                                            </div>
-                                            <div className="p-4 relative -mt-10">
-                                                <h3 className="font-bold text-lg truncate text-shadow">{h.title}</h3>
-                                                <p className="text-pink-400 text-sm mt-1 flex items-center gap-2">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-pink-500" />
-                                                    {h.chapterTitle}
-                                                </p>
-                                                <p className="text-white/20 text-xs mt-3 uppercase tracking-wider font-mono">Resume ›</p>
-                                            </div>
-                                        </Link>
-                                    ))}
+                                    {history.map((h, i) => {
+                                        // Convert stored provider to code
+                                        const code = PROVIDER_CODES[h.provider] || '8841';
+                                        return (
+                                            <Link 
+                                                key={i} 
+                                                // URL RESULT: /read/8841/chapter-id?mangaId=...
+                                                href={`/read/${code}/${h.chapterId}?mangaId=${h.id}`} 
+                                                onClick={() => saveCoverToStorage(h.id, h.image)}
+                                                className="snap-start shrink-0 w-64 group relative rounded-3xl overflow-hidden border border-white/10 bg-white/5"
+                                            >
+                                                <div className="relative h-32 overflow-hidden">
+                                                    {h.image && <img src={`/api/proxy?url=${encodeURIComponent(h.image)}&source=${h.provider}`} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" alt={h.title} />}
+                                                    <div className="absolute inset-0 bg-gradient-to-t from-[#0f0f11] to-transparent" />
+                                                </div>
+                                                <div className="p-4 relative -mt-10">
+                                                    <h3 className="font-bold text-lg truncate text-shadow">{h.title}</h3>
+                                                    <p className="text-pink-400 text-sm mt-1 flex items-center gap-2">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-pink-500" />
+                                                        {h.chapterTitle}
+                                                    </p>
+                                                    <p className="text-white/20 text-xs mt-3 uppercase tracking-wider font-mono">Resume ›</p>
+                                                </div>
+                                            </Link>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}
 
                         <div className="mb-16">
                             <div className="flex items-center gap-3 mb-6">
-                                <span className="text-2xl">🔥</span>
-                                <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-500 uppercase tracking-wide">Popular Now</h2>
+                                <span className="text-2xl">🔥</span><h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-500 uppercase tracking-wide">Popular Now</h2>
                             </div>
                             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">{popular.map((m) => <MangaCard key={m.id} m={m} />)}</div>
                         </div>
 
                         <div className="mb-12">
                              <div className="flex items-center gap-3 mb-6">
-                                <span className="text-2xl">⚡</span>
-                                <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-500 uppercase tracking-wide">Fresh Updates</h2>
+                                <span className="text-2xl">⚡</span><h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-500 uppercase tracking-wide">Fresh Updates</h2>
                             </div>
                             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">{ongoing.map((m) => <MangaCard key={m.id} m={m} />)}</div>
                         </div>
