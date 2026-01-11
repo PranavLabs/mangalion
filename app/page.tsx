@@ -130,7 +130,7 @@ export default function Home() {
               <div className="flex items-center gap-3 group cursor-default">
                   <div className="relative h-10 w-10 rounded-xl overflow-hidden shadow-[0_0_20px_rgba(236,72,153,0.5)] border border-white/10 group-hover:scale-105 transition-transform">
                       <Image 
-                        src="/icon.png" // Assumes icon.png is in public folder
+                        src="/logo.png" // Assumes icon.png is in public folder
                         alt="KOMIK Logo" 
                         fill
                         className="object-cover z-10"
