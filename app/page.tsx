@@ -77,7 +77,7 @@ export default function Home() {
     // Wait 600ms after user stops typing before calling API
     const delayDebounceFn = setTimeout(() => {
         executeSearch(search);
-    }, 600);
+    }, 100);
 
     return () => clearTimeout(delayDebounceFn);
   }, [search, executeSearch]);
