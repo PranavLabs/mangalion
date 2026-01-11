@@ -8,8 +8,6 @@ export default function Home() {
   const [popular, setPopular] = useState<any[]>([]);
   const [ongoing, setOngoing] = useState<any[]>([]);
   const [searchResults, setSearchResults] = useState<any[]>([]);
-  
-  // NEW: History State
   const [history, setHistory] = useState<any[]>([]);
 
   const [search, setSearch] = useState('');
@@ -38,10 +36,7 @@ export default function Home() {
   }, [provider]);
 
   const executeSearch = useCallback(async (q: string) => {
-      if(!q.trim()) {
-          setSearchResults([]);
-          return;
-      }
+      if(!q.trim()) { setSearchResults([]); return; }
       setSearching(true);
       try {
         const res = await fetch(`/api/manga?provider=${provider}&q=${encodeURIComponent(q)}`);
@@ -51,19 +46,14 @@ export default function Home() {
       setSearching(false);
   }, [provider]);
 
-  // LOAD HISTORY ON MOUNT
   useEffect(() => {
       if (typeof window !== 'undefined') {
           const saved = localStorage.getItem('komik_history');
-          if (saved) {
-              setHistory(JSON.parse(saved));
-          }
+          if (saved) setHistory(JSON.parse(saved));
       }
   }, []);
 
-  useEffect(() => { 
-      if (search === '') fetchHomeData(); 
-  }, [fetchHomeData, search]); 
+  useEffect(() => { if (search === '') fetchHomeData(); }, [fetchHomeData, search]); 
 
   useEffect(() => {
     if (!search.trim()) { setSearchResults([]); setSearching(false); return; }
@@ -71,9 +61,12 @@ export default function Home() {
     return () => clearTimeout(delayDebounceFn);
   }, [search, executeSearch]);
 
-  // Card Component
   const MangaCard = ({ m }: { m: any }) => (
-    <Link href={`/manga/${m.id}?provider=${provider}`} className="group relative">
+    <Link 
+        // FIX: Pass the working image URL as a 'cover' parameter
+        href={`/manga/${m.id}?provider=${provider}&cover=${encodeURIComponent(m.image || '')}`} 
+        className="group relative"
+    >
         <div className="aspect-[2/3] rounded-3xl overflow-hidden bg-white/5 border border-white/10 shadow-2xl relative transition-all duration-500 group-hover:-translate-y-2 group-hover:shadow-pink-500/20 group-hover:border-pink-500/30">
             {m.image ? (
                 <img src={`/api/proxy?url=${encodeURIComponent(m.image)}&source=${provider}`} className="object-cover w-full h-full opacity-80 group-hover:opacity-100 transition-opacity duration-500" alt={m.title} loading="lazy" />
@@ -97,12 +90,11 @@ export default function Home() {
       <div className="fixed top-[-20%] left-[-10%] w-[600px] h-[600px] bg-purple-600/30 rounded-full blur-[120px] pointer-events-none mix-blend-screen animate-pulse" />
       <div className="fixed bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[100px] pointer-events-none mix-blend-screen" />
 
-      {/* HEADER */}
       <header className="sticky top-0 z-50 w-full px-4 md:px-8 py-4 bg-[#0f0f11]/70 backdrop-blur-xl border-b border-white/5 shadow-[0_4px_30px_rgba(0,0,0,0.1)]">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
               <div className="flex items-center gap-3 group cursor-default">
                   <div className="relative h-10 w-10 rounded-xl overflow-hidden shadow-[0_0_20px_rgba(236,72,153,0.5)] border border-white/10 group-hover:scale-105 transition-transform">
-                      <Image src="/logo.png" alt="KOMIK Logo" fill className="object-cover z-10" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement?.classList.add('bg-gradient-to-br', 'from-pink-500', 'to-blue-500'); }} />
+                      <Image src="/icon.png" alt="KOMIK" fill className="object-cover z-10" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement?.classList.add('bg-gradient-to-br', 'from-pink-500', 'to-blue-500'); }} />
                       <div className="absolute inset-0 bg-gradient-to-br from-pink-500/20 to-blue-500/20 z-0"></div>
                   </div>
                   <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 tracking-tight drop-shadow-sm">KOMIK</span>
@@ -112,7 +104,6 @@ export default function Home() {
 
       <div className="max-w-7xl mx-auto p-4 md:p-8 relative z-10 mt-4">
         
-        {/* SEARCH CONTROLS */}
         <div className="sticky top-24 z-40 mb-8">
             <div className="flex flex-col md:flex-row gap-4 p-3 bg-white/5 backdrop-blur-xl border border-white/10 rounded-[2rem] shadow-2xl ring-1 ring-black/5">
                 <div className="relative group w-full md:w-auto">
@@ -129,7 +120,6 @@ export default function Home() {
             </div>
         </div>
 
-        {/* LOADING */}
         {loading && !search && (
           <div className="flex flex-col items-center justify-center py-32 space-y-4">
              <div className="w-12 h-12 border-4 border-pink-500 border-t-transparent rounded-full animate-spin" />
@@ -137,10 +127,8 @@ export default function Home() {
           </div>
         )}
 
-        {/* MAIN CONTENT */}
         {!loading && (
             <>
-                {/* 1. SEARCH RESULTS */}
                 {search.trim() !== '' && (
                     <div className="mb-12">
                         <h2 className="text-2xl font-bold mb-6 flex items-center gap-2"><span className="text-pink-500">🔎</span> Search Results {searching && <span className="text-sm text-white/40 font-normal animate-pulse">(Searching...)</span>}</h2>
@@ -149,11 +137,9 @@ export default function Home() {
                     </div>
                 )}
 
-                {/* 2. HOME FEED */}
                 {search.trim() === '' && (
                     <div className="animate-in fade-in duration-700">
-                        
-                        {/* --- CONTINUE READING (NEW) --- */}
+                        {/* CONTINUE READING */}
                         {history.length > 0 && (
                             <div className="mb-16">
                                 <div className="flex items-center gap-3 mb-6">
@@ -164,8 +150,8 @@ export default function Home() {
                                     {history.map((h, i) => (
                                         <Link 
                                             key={i} 
-                                            // LINK DIRECTLY TO LAST READ CHAPTER
-                                            href={`/read/${h.chapterId}?provider=${h.provider}&mangaId=${h.id}`} 
+                                            // FIX: Pass the cover image back to the reader so it stays in history
+                                            href={`/read/${h.chapterId}?provider=${h.provider}&mangaId=${h.id}&cover=${encodeURIComponent(h.image || '')}`} 
                                             className="snap-start shrink-0 w-64 group relative rounded-3xl overflow-hidden border border-white/10 bg-white/5"
                                         >
                                             <div className="relative h-32 overflow-hidden">
@@ -186,7 +172,6 @@ export default function Home() {
                             </div>
                         )}
 
-                        {/* POPULAR */}
                         <div className="mb-16">
                             <div className="flex items-center gap-3 mb-6">
                                 <span className="text-2xl">🔥</span>
@@ -195,7 +180,6 @@ export default function Home() {
                             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">{popular.map((m) => <MangaCard key={m.id} m={m} />)}</div>
                         </div>
 
-                        {/* ONGOING */}
                         <div className="mb-12">
                              <div className="flex items-center gap-3 mb-6">
                                 <span className="text-2xl">⚡</span>
